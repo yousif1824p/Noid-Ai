@@ -86,6 +86,7 @@
 - [x] Add plain-text APK report export with evidence, confidence, and explicit scope limitations.
 - [x] Add scope validation and per-check risk/authorization gates for read-only APK Manifest and selected project-source checks; dynamic/network adapters remain unimplemented.
 - [x] Add authorization regression tests proving dynamic/network checks fail closed without target authorization and target modification remains denied.
+- [x] Add a deterministic simulation-only lab harness for the registered sample target, with explicit simulation provenance, authorization/isolation gates, bounded probe inputs, and zero file/network side effects; unit tests cover rejection and simulated findings. This is not a real APK/process dynamic test.
 - [ ] Add controlled dynamic checks for a deliberately vulnerable sample app/test environment.
 - [x] Add bounded in-memory remediation diff previews for supported manifest attributes, rescan proposed content, and verify that unrelated or remaining findings are not incorrectly marked resolved; previews never write project files.
 
