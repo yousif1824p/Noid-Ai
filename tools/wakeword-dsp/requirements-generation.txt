@@ -1,0 +1,6 @@
+# Python 3.12.x; direct numerical dependencies pinned exactly.
+numpy==1.26.4
+scipy==1.14.1
+torch==2.5.1
+soundfile==0.12.1
+heed-wakeword @ git+https://github.com/AndreiBulzan/heed-wakeword.git@643a93c1e6702640c515475500f2e2653bd7d621
