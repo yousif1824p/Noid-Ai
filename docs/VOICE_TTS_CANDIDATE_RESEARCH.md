@@ -53,3 +53,21 @@ A candidate may move to integration only after:
 - cancellation, offline behavior, and privacy boundaries are tested.
 
 Until then, `SpeechOutputEngine` remains a contract only and `VoiceSetupScreen` must continue to state that TTS is not configured.
+
+## ONNX export investigation (third-party; not approved)
+
+A third-party export exists at `OpenVoiceOS/phoonnx-f5tts`, under its `habibi-tts-irq/` directory. Its model card describes three ONNX graphs (`model.onnx`, `F5_Preprocess.onnx`, and `F5_Decode.onnx`), a vocabulary/configuration pair, 24 kHz output, and use with the phoonnx F5TTS adapter. The documented synthesis path is **in-context voice cloning** and requires both a reference audio clip and its transcript.
+
+References:
+- Export README: https://huggingface.co/OpenVoiceOS/phoonnx-f5tts/tree/main/habibi-tts-irq
+- Pinned export README: https://huggingface.co/OpenVoiceOS/phoonnx-f5tts/blob/34a2b8ee5fd667b80df3333bbe78ce0de59f1ebb/habibi-tts-irq/README.md
+- Source IRQ checkpoint: https://huggingface.co/ameer4wisam/Habibi-TTS-IRQ
+
+### Findings and blockers
+
+- ONNX is a model interchange format, not proof of Android/ARM64 deployment. The export README specifies a phoonnx adapter; it does not demonstrate a ready-to-use Android integration or measured phone performance.
+- The model is reference-conditioned cloning. It does not provide a fixed, intrinsically gender-neutral NOID voice. A reference clip would determine much of the voice identity, so using an arbitrary speaker recording would violate the project's no-voice-cloning requirement.
+- The source IRQ checkpoint is listed as Apache-2.0. However, this is a third-party export repository whose top-level licensing and individual artifact provenance must be checked file-by-file before copying or redistributing any ONNX weights. Do not assume that the export repository's license and the source checkpoint license are interchangeable.
+- The exported graph set, adapter, tokenizer/vocabulary, preprocessing, vocoder, and any reference-audio handling must be audited together. A single `model.onnx` file is not a complete TTS runtime.
+
+**Decision:** record this as a technical lead only. Do not download it into the Android app, bundle it, or mark TTS integrated. It may be reconsidered only if a legally cleared, purpose-created synthetic reference identity can be produced and the complete pipeline passes Arabic audition, privacy review, and real ARM64 performance tests. If that route cannot satisfy the identity requirement, reject it and seek a non-cloning multi-speaker or directly controllable voice-identity model instead.
