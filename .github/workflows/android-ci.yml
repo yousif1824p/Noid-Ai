@@ -65,6 +65,21 @@ jobs:
         working-directory: tools/release-package
         run: python -m unittest discover -s tests -v
 
+  signing-preflight-tests:
+    name: Release signing preflight tests (no signing secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run signing preflight tests
+        working-directory: tools/signing-preflight
+        run: python -m unittest discover -s tests -v
+
   unit-tests:
     name: Android unit tests (no APK packaging)
     needs: dsp-generator-tests
