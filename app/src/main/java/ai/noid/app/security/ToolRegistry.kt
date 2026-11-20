@@ -25,7 +25,9 @@ class ToolRequest(arguments: Map<String, String>) {
     fun isWithinLimits(): Boolean =
         arguments.size <= MAX_ARGUMENTS &&
             arguments.all { (key, value) ->
-                key.isNotBlank() && key.length <= MAX_KEY_LENGTH && value.length <= MAX_VALUE_LENGTH
+                key.isNotBlank() && key.length <= MAX_KEY_LENGTH &&
+                    key.none { it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt() } &&
+                    value.length <= MAX_VALUE_LENGTH
             }
 
     companion object {
