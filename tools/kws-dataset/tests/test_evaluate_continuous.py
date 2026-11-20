@@ -2,6 +2,7 @@ import csv
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from evaluate_continuous import EvaluationError, evaluate
 
@@ -55,6 +56,39 @@ class ContinuousEvaluationTest(unittest.TestCase):
         self.assertEqual(result["unmatched_detections_on_positive_audio"], 1)
         self.assertEqual(len(result["breakdown_by_speaker_and_condition"]), 3)
         self.assertFalse(result["audio_opened_or_uploaded"])
+
+    def test_rejects_recording_row_limit(self):
+        self.fixture()
+        with patch("evaluate_continuous.MAX_RECORDINGS", 2):
+            with self.assertRaisesRegex(EvaluationError, "exceeds 2 data rows"):
+                evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
+    def test_rejects_detection_event_row_limit(self):
+        self.fixture()
+        with patch("evaluate_continuous.MAX_DETECTION_EVENTS", 3):
+            with self.assertRaisesRegex(EvaluationError, "exceeds 3 data rows"):
+                evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
+    def test_rejects_oversized_recording_identifier(self):
+        self.fixture()
+        self.write(self.recordings,
+            ["recording_id", "speaker_id", "split", "label", "condition", "duration_seconds"], [
+                {"recording_id": "r" * 129, "speaker_id": "spk-a", "split": "final_test",
+                 "label": "positive", "condition": "quiet", "duration_seconds": "20"},
+                {"recording_id": "n1", "speaker_id": "spk-b", "split": "final_test",
+                 "label": "negative", "condition": "tv", "duration_seconds": "3600"},
+            ])
+        with self.assertRaisesRegex(EvaluationError, "invalid recording_id"):
+            evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
+    def test_rejects_duplicate_csv_columns(self):
+        self.fixture()
+        self.recordings.write_text(
+            "recording_id,recording_id,speaker_id,split,label,condition,duration_seconds\\n",
+            encoding="utf-8"
+        )
+        with self.assertRaisesRegex(EvaluationError, "duplicate CSV columns"):
+            evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
 
     def test_rejects_detection_outside_recording(self):
         self.fixture()
