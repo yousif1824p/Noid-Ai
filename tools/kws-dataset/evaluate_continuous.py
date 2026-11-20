@@ -144,6 +144,14 @@ def evaluate(recordings_csv: Path, detections_csv: Path, truth_csv: Path,
             raise EvaluationError(f"invalid ground-truth interval for {rid}")
         truths[rid].append((start, end))
 
+    for rid, intervals in truths.items():
+        ordered_intervals = sorted(intervals)
+        for previous, current in zip(ordered_intervals, ordered_intervals[1:]):
+            if current[0] < previous[1]:
+                raise EvaluationError(
+                    f"overlapping ground-truth phrase intervals for {rid!r}"
+                )
+
     positive_ids = [rid for rid, r in recordings.items() if r["label"] == "positive"]
     negative_ids = [rid for rid, r in recordings.items() if r["label"] == "negative"]
     if not negative_ids:

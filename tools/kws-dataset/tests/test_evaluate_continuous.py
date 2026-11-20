@@ -114,7 +114,7 @@ class ContinuousEvaluationTest(unittest.TestCase):
     def test_rejects_duplicate_csv_columns(self):
         self.fixture()
         self.recordings.write_text(
-            "recording_id,recording_id,speaker_id,split,label,condition,duration_seconds\\n",
+            "recording_id,recording_id,speaker_id,split,label,condition,duration_seconds\n",
             encoding="utf-8"
         )
         with self.assertRaisesRegex(EvaluationError, "duplicate CSV columns"):
@@ -156,6 +156,15 @@ class ContinuousEvaluationTest(unittest.TestCase):
         self.fixture()
         self.recordings.write_bytes(b"recording_id,speaker_id,split,label,condition,duration_seconds\n\xff")
         with self.assertRaisesRegex(EvaluationError, "malformed CSV encoding or quoting"):
+            evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
+    def test_rejects_overlapping_ground_truth_intervals(self):
+        self.fixture()
+        self.write(self.truth, ["recording_id", "start_seconds", "end_seconds"], [
+            {"recording_id": "p1", "start_seconds": "3", "end_seconds": "5"},
+            {"recording_id": "p1", "start_seconds": "4", "end_seconds": "6"},
+        ])
+        with self.assertRaisesRegex(EvaluationError, "overlapping ground-truth phrase intervals"):
             evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
 
     def test_rejects_unterminated_quoted_csv_field(self):
