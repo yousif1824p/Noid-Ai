@@ -146,7 +146,6 @@ class KeywordSpottingAudioSessionTest {
         assertTrue(runtime.closed)
     }
 
-
     @Test
     fun closeWaitsForInFlightInferenceAndSuppressesItsEvent() {
         val inferenceStarted = CountDownLatch(1)
@@ -182,7 +181,6 @@ class KeywordSpottingAudioSessionTest {
         }
         closer.start()
 
-        // close() must wait for the active inference instead of disposing its runtime.
         assertFalse(closeFinished.await(100, TimeUnit.MILLISECONDS))
         allowInferenceToFinish.countDown()
         worker.join(2_000)
@@ -193,6 +191,46 @@ class KeywordSpottingAudioSessionTest {
         assertTrue(closeFinished.count == 0L)
         assertTrue(runtime.closed)
         assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun closeWaitsForEventCallbackAndReturnsOnlyAfterDeliveryFinishes() {
+        val callbackStarted = CountDownLatch(1)
+        val allowCallbackToFinish = CountDownLatch(1)
+        val closeFinished = CountDownLatch(1)
+        val event = KeywordSpottingEvent.Detected("يا NOID", 0.95f)
+        val source = FakeSource(listOf(frame()))
+        val runtime = FakeRuntime(descriptor, event)
+        val received = java.util.Collections.synchronizedList(mutableListOf<KeywordSpottingEvent>())
+        val session = KeywordSpottingAudioSession(source, runtime, { false }) {
+            received.add(it)
+            callbackStarted.countDown()
+            check(allowCallbackToFinish.await(2, TimeUnit.SECONDS))
+        }
+        val worker = Thread { session.run() }
+        worker.start()
+        assertTrue(callbackStarted.await(2, TimeUnit.SECONDS))
+
+        val closer = Thread {
+            try {
+                session.close()
+            } finally {
+                closeFinished.countDown()
+            }
+        }
+        closer.start()
+
+        assertFalse(closeFinished.await(100, TimeUnit.MILLISECONDS))
+        allowCallbackToFinish.countDown()
+        worker.join(2_000)
+        closer.join(2_000)
+
+        assertFalse(worker.isAlive)
+        assertFalse(closer.isAlive)
+        assertTrue(closeFinished.count == 0L)
+        assertEquals(listOf(event), received.toList())
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
     }
 
     @Test
