@@ -39,7 +39,7 @@ def validate(path: Path) -> dict:
         if path.stat().st_size > MAX_FILE_BYTES:
             return {"valid": False, "errors": [f"CSV exceeds {MAX_FILE_BYTES} bytes"], "groups": []}
         with path.open("r", encoding="utf-8-sig", newline="") as stream:
-            reader = csv.DictReader(stream)
+            reader = csv.DictReader(stream, strict=True)
             headers = reader.fieldnames
             if headers is None:
                 return {"valid": False, "errors": ["CSV has no header"], "groups": []}
