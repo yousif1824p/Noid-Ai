@@ -96,7 +96,7 @@ def validate(path: Path) -> dict:
                     values[field] = score
                 if len(values) == len(SCORES):
                     grouped[(candidate, dialect)].append(values)
-    except (OSError, csv.Error) as exc:
+    except (OSError, csv.Error, UnicodeError) as exc:
         return {"valid": False, "errors": [f"Cannot read valid CSV: {exc}"], "groups": []}
 
     summaries = []
