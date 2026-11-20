@@ -82,7 +82,7 @@ class ScorecardTests(unittest.TestCase):
         self.assertTrue(any("candidate_id" in error for error in result["errors"]))
 
     def test_listener_identifier_control_character_is_rejected(self):
-        result = validate(self.write_rows([self.row("L1\\u202e")]))
+        result = validate(self.write_rows([self.row("L1" + chr(0x202e))]))
         self.assertFalse(result["valid"])
         self.assertTrue(any("listener_code" in error for error in result["errors"]))
 
