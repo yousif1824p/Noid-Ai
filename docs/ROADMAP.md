@@ -49,6 +49,7 @@
 - [x] Add a user-controlled Compose image picker with a bounded prompt and actual-byte validation; local analysis is enabled only after a separately imported vision runtime reports Ready, while target-device inference remains unverified.
 - [x] Validate JPEG/PNG/WebP container signatures and inspect decoded image bounds before pixel allocation; cap dimensions at 8,192 and decoded pixel count at 40 megapixels, with pure-policy unit tests.
 - [x] Add a voice setup/status screen that clearly reports the unconfigured state.
+- [x] Define a provider-neutral synthetic speech-output contract and bounded Arabic request policy with unit-test coverage; no TTS provider or audio playback is integrated yet.
 - [x] Add a static launcher shortcut that opens voice setup directly without requesting microphone access or starting capture; cover route validation with unit tests.
 - [x] Add a pure voice-session gate requiring user initiation, visible app, microphone permission, foreground-service availability, and configured local KWS runtime, with unit tests.
 - [x] Add a fail-closed microphone foreground-service preflight policy with API 28/34 permission gates, visible-activity/user-gesture requirements, notification-channel readiness, and local KWS readiness tests; this is policy only, not a running service.
