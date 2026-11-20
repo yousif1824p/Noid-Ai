@@ -81,6 +81,12 @@ class ContinuousEvaluationTest(unittest.TestCase):
             with self.assertRaisesRegex(EvaluationError, "exceeds 1 data rows"):
                 evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
 
+    def test_rejects_excessive_matching_workload(self):
+        self.fixture()
+        with patch("evaluate_continuous.MAX_MATCH_CANDIDATE_CHECKS", 1):
+            with self.assertRaisesRegex(EvaluationError, "matching workload exceeds 1 candidate checks"):
+                evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
     def test_rejects_format_character_in_speaker_identifier(self):
         self.fixture()
         self.write(self.recordings,

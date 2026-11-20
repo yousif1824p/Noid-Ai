@@ -26,6 +26,7 @@ MAX_DETECTION_EVENTS = 100_000
 MAX_TRUTH_EVENTS = 100_000
 MAX_IDENTIFIER_LENGTH = 128
 MAX_METADATA_LENGTH = 128
+MAX_MATCH_CANDIDATE_CHECKS = 2_000_000
 
 
 class EvaluationError(ValueError):
@@ -164,11 +165,20 @@ def evaluate(recordings_csv: Path, detections_csv: Path, truth_csv: Path,
         found = sorted(detections[rid])
         expected = sorted(truths[rid])
         matched: set[int] = set()
+        candidate_checks = 0
         for start, end in expected:
             totals["positive_events"] += 1
             group["events"] += 1
-            candidates = [(abs(t - end), i) for i, (t, _) in enumerate(found)
-                          if i not in matched and start - tolerance <= t <= end + tolerance]
+            candidates = []
+            for index, (timestamp, _) in enumerate(found):
+                candidate_checks += 1
+                if candidate_checks > MAX_MATCH_CANDIDATE_CHECKS:
+                    raise EvaluationError(
+                        "matching workload exceeds "
+                        f"{MAX_MATCH_CANDIDATE_CHECKS} candidate checks for recording {rid!r}"
+                    )
+                if index not in matched and start - tolerance <= timestamp <= end + tolerance:
+                    candidates.append((abs(timestamp - end), index))
             if candidates:
                 _, index = min(candidates)
                 matched.add(index)
