@@ -27,6 +27,37 @@ class ToolExecutionPolicyTest {
     }
 
     @Test
+    fun rejectsControlCharactersAndOversizedAuditMetadata() {
+        val invalidActions = listOf(
+            ToolAction("read\\nforged", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة"),
+            ToolAction("read", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة\\u202Eمزيفة"),
+            ToolAction("x".repeat(129), ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة"),
+            ToolAction("read", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "وصف".repeat(86)),
+            ToolAction("read/forbidden", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة")
+        )
+        invalidActions.forEach { action ->
+            assertEquals(
+                ToolDecision.DENY,
+                policy.evaluate(action, setOf(ToolCapability.READ_FILES), true).decision
+            )
+        }
+    }
+
+    @Test
+    fun acceptsBoundedSafeAuditMetadata() {
+        val action = ToolAction(
+            "project.read-file:v1",
+            ToolCapability.READ_FILES,
+            ToolRisk.READ_ONLY,
+            "قراءة ملف المشروع"
+        )
+        assertEquals(
+            ToolDecision.ALLOW,
+            policy.evaluate(action, setOf(ToolCapability.READ_FILES), false).decision
+        )
+    }
+
+    @Test
     fun sensitiveAndDestructiveActionsAlwaysRequireConfirmation() {
         listOf(ToolRisk.SENSITIVE, ToolRisk.DESTRUCTIVE).forEach { risk ->
             val action = ToolAction("protected-${risk.name.lowercase()}", ToolCapability.WRITE_FILES, risk, "إجراء محمي")
