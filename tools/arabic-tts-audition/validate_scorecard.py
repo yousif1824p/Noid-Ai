@@ -7,6 +7,7 @@ import csv
 import json
 import statistics
 import sys
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -17,6 +18,16 @@ COLUMNS = (
 )
 DIALECTS = {"msa", "iraqi"}
 SCORES = COLUMNS[3:]
+MAX_FILE_BYTES = 2 * 1024 * 1024
+MAX_RATINGS = 10_000
+MAX_CANDIDATE_ID_LENGTH = 80
+MAX_LISTENER_CODE_LENGTH = 32
+
+
+def _safe_identifier(value: str, maximum: int) -> bool:
+    return bool(value) and len(value) <= maximum and not any(
+        unicodedata.category(char) in {"Cc", "Cf"} for char in value
+    )
 
 
 def validate(path: Path) -> dict:
@@ -25,6 +36,8 @@ def validate(path: Path) -> dict:
     seen: set[tuple[str, str, str]] = set()
 
     try:
+        if path.stat().st_size > MAX_FILE_BYTES:
+            return {"valid": False, "errors": [f"CSV exceeds {MAX_FILE_BYTES} bytes"], "groups": []}
         with path.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
             headers = reader.fieldnames
@@ -43,6 +56,9 @@ def validate(path: Path) -> dict:
                 return {"valid": False, "errors": errors, "groups": []}
 
             for line, row in enumerate(reader, start=2):
+                if line - 1 > MAX_RATINGS:
+                    errors.append(f"CSV exceeds {MAX_RATINGS} rating rows")
+                    break
                 if None in row:
                     errors.append(f"Line {line}: too many CSV fields")
                     continue
@@ -52,8 +68,11 @@ def validate(path: Path) -> dict:
                 candidate = (row.get("candidate_id") or "").strip()
                 dialect = (row.get("dialect") or "").strip().lower()
                 listener = (row.get("listener_code") or "").strip()
-                if not candidate or not listener:
-                    errors.append(f"Line {line}: candidate_id and listener_code are required")
+                if not _safe_identifier(candidate, MAX_CANDIDATE_ID_LENGTH):
+                    errors.append(f"Line {line}: candidate_id is empty, too long, or contains control/format characters")
+                    continue
+                if not _safe_identifier(listener, MAX_LISTENER_CODE_LENGTH):
+                    errors.append(f"Line {line}: listener_code is empty, too long, or contains control/format characters")
                     continue
                 if dialect not in DIALECTS:
                     errors.append(f"Line {line}: dialect must be msa or iraqi")
