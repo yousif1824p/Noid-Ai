@@ -49,7 +49,7 @@ Input safety limits:
 - Each CSV file is limited to 8 MiB.
 - Recordings are limited to 10,000 rows; detection and ground-truth event files are limited to 100,000 rows each.
 - Identifiers are limited to 128 characters; speaker IDs and condition labels are limited to 128 characters.
-- CSV headers must match the required columns exactly, without duplicates; malformed row widths and control/format characters in identifiers are rejected.
+- CSV headers must match the required columns exactly, without duplicates; malformed row widths and control/format characters in identifiers are rejected. Invalid UTF-8 and malformed CSV quoting are also rejected with a structured evaluator error.
 - These are defensive parser limits, not recommended dataset sizes or evidence of detector performance.
 
 Limitations:
