@@ -9,7 +9,7 @@ import org.junit.Test
 class KeywordSpottingAudioSessionTest {
     private val descriptor = KeywordModelDescriptor(
         modelId = "test-local", displayName = "Test", languageTag = "ar-IQ",
-        wakePhrase = "يا NOID", sampleRateHz = 16_000, frameLengthSamples = 4,
+        wakePhrase = "يا NOID", sampleRateHz = 16_000, frameLengthSamples = 80,
         localOnly = true, modelVersion = "1"
     )
 
@@ -52,11 +52,13 @@ class KeywordSpottingAudioSessionTest {
         override fun close() { closed = true }
     }
 
+    private fun frame(start: Int = 1) = ShortArray(80) { (it + start).toShort() }
+
     @Test
     fun joinsPartialReadsIntoExactModelFrames() {
-        val source = FakeSource(listOf(
-            shortArrayOf(1, 2), shortArrayOf(3), shortArrayOf(4, 5, 6, 7, 8)
-        ))
+        val first = frame()
+        val second = frame(100)
+        val source = FakeSource(listOf(first.copyOfRange(0, 20), first.copyOfRange(20, 80), second))
         val runtime = FakeRuntime(descriptor)
         val session = KeywordSpottingAudioSession(source, runtime, { runtime.frames >= 2 }, {})
         assertNull(session.run())
@@ -69,7 +71,7 @@ class KeywordSpottingAudioSessionTest {
 
     @Test
     fun emitsOnlyBoundaryValidatedEvents() {
-        val source = FakeSource(listOf(shortArrayOf(1, 2, 3, 4)))
+        val source = FakeSource(listOf(frame()))
         val event = KeywordSpottingEvent.Detected("يا NOID", 0.92f)
         val runtime = FakeRuntime(descriptor, event)
         val received = mutableListOf<KeywordSpottingEvent>()
@@ -81,11 +83,11 @@ class KeywordSpottingAudioSessionTest {
     }
 
     @Test
-    fun rejectsNonLocalModelBeforeStartingMicrophoneAndCleansUp() {
+    fun rejectsInvalidDescriptorBeforeStartingMicrophoneAndCleansUp() {
         val source = FakeSource(emptyList())
         val runtime = FakeRuntime(descriptor.copy(localOnly = false))
         val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
-        assertEquals("يُسمح بنموذج محلي فقط.", session.run())
+        assertEquals("بيانات نموذج اكتشاف الكلمة غير صالحة.", session.run())
         assertFalse(source.started)
         assertTrue(source.closed)
         assertTrue(runtime.closed)
@@ -93,7 +95,7 @@ class KeywordSpottingAudioSessionTest {
 
     @Test
     fun rejectsInvalidDetectionAndAlwaysCleansUp() {
-        val source = FakeSource(listOf(shortArrayOf(1, 2, 3, 4)))
+        val source = FakeSource(listOf(frame()))
         val runtime = FakeRuntime(descriptor, KeywordSpottingEvent.Detected("wrong", 0.5f))
         val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
         assertEquals("عبارة التنبيه المكتشفة لا تطابق العبارة المضبوطة.", session.run())
@@ -103,9 +105,7 @@ class KeywordSpottingAudioSessionTest {
 
     @Test
     fun stopRequestEndsAfterCurrentFrameAndClosesResources() {
-        val source = FakeSource(listOf(
-            shortArrayOf(1, 2, 3, 4), shortArrayOf(5, 6, 7, 8)
-        ))
+        val source = FakeSource(listOf(frame(), frame(100)))
         val runtime = FakeRuntime(descriptor)
         val session = KeywordSpottingAudioSession(source, runtime, { runtime.frames >= 1 }, {})
         assertNull(session.run())
