@@ -106,6 +106,9 @@ internal class KeywordSpottingAudioSession(
 ) : AutoCloseable {
     private val resourceLock = Any()
     private val runtimeLock = Any()
+    // Serializes event delivery with close(): once close() returns, no callback
+    // can still be running or begin afterward.
+    private val deliveryLock = Any()
     @Volatile private var closed = false
 
     fun run(): String? {
@@ -147,14 +150,18 @@ internal class KeywordSpottingAudioSession(
                 } catch (_: Exception) {
                     return "تعذر تشغيل نموذج اكتشاف الكلمة."
                 }
-                // A UI-thread close may have waited for inference to finish. Never
-                // publish a result after that close request has been accepted.
-                if (closed) break
                 if (event != null) {
                     val eventError = KeywordSpottingBoundaryPolicy.validateEvent(event, descriptor)
                     if (eventError != null) return eventError
-                    if (closed) break
-                    onEvent(event)
+                    val delivered = synchronized(deliveryLock) {
+                        if (closed) {
+                            false
+                        } else {
+                            onEvent(event)
+                            true
+                        }
+                    }
+                    if (!delivered) break
                     if (event is KeywordSpottingEvent.Unavailable) return event.reason
                 }
             }
@@ -165,19 +172,23 @@ internal class KeywordSpottingAudioSession(
     }
 
     override fun close() {
-        synchronized(resourceLock) {
-            if (closed) return
-            closed = true
-            try {
-                source.stop()
-            } finally {
+        // Acquire delivery first. If a callback is already running, close waits
+        // for it; otherwise closed is set before another callback can begin.
+        synchronized(deliveryLock) {
+            synchronized(resourceLock) {
+                if (closed) return
+                closed = true
                 try {
-                    source.close()
+                    source.stop()
                 } finally {
-                    // Do not dispose the inference engine while processAudioFrame()
-                    // is using it. Marking closed first prevents any new inference.
-                    synchronized(runtimeLock) {
-                        runtime.close()
+                    try {
+                        source.close()
+                    } finally {
+                        // Do not dispose the inference engine while processAudioFrame()
+                        // is using it. Marking closed first prevents any new inference.
+                        synchronized(runtimeLock) {
+                            runtime.close()
+                        }
                     }
                 }
             }
