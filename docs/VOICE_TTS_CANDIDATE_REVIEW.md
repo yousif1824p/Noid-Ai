@@ -25,6 +25,10 @@ Keep all three as research candidates; do not choose a production engine yet. Ha
 
 The selected voice must be evaluated as a *designed synthetic identity*, not by cloning a person's recording. A neutral/ambiguous perceived gender cannot be guaranteed by a model card: create a controlled listening test with multiple listeners and reject any candidate consistently perceived as distinctly male or female. If needed, apply restrained electronic post-processing only after intelligibility testing.
 
+## Current research decision
+
+See `docs/VOICE_TTS_CANDIDATE_RESEARCH.md` for the current checkpoint/license comparison. Habibi-TTS-IRQ is the primary Iraqi dialect candidate for evaluation; SILMA TTS v1 is an MSA baseline only. Neither is approved as NOID's gender-ambiguous synthetic identity, and neither has been integrated into Android.
+
 ## Standardized audition material
 
 A fixed Modern Standard Arabic and Iraqi Arabic text corpus with a blind-listener scorecard is available at `docs/VOICE_TTS_AUDITION_CORPUS.md`. It is evaluation material only; no candidate has passed it.
