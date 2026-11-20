@@ -11,6 +11,7 @@ import csv
 import json
 import math
 import sys
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -19,19 +20,54 @@ DETECTION_COLUMNS = {"recording_id", "timestamp_seconds", "confidence"}
 TRUTH_COLUMNS = {"recording_id", "start_seconds", "end_seconds"}
 SPLITS = {"train", "calibration", "final_test"}
 LABELS = {"positive", "negative"}
+MAX_CSV_FILE_BYTES = 8 * 1024 * 1024
+MAX_RECORDINGS = 10_000
+MAX_DETECTION_EVENTS = 100_000
+MAX_TRUTH_EVENTS = 100_000
+MAX_IDENTIFIER_LENGTH = 128
+MAX_METADATA_LENGTH = 128
 
 
 class EvaluationError(ValueError):
     pass
 
 
-def _read_csv(path: Path, required: set[str]) -> list[dict[str, str]]:
+def _read_csv(path: Path, required: set[str], max_rows: int) -> list[dict[str, str]]:
+    if path.stat().st_size > MAX_CSV_FILE_BYTES:
+        raise EvaluationError(f"{path.name}: CSV exceeds {MAX_CSV_FILE_BYTES} bytes")
     with path.open("r", encoding="utf-8-sig", newline="") as stream:
         reader = csv.DictReader(stream)
-        if not reader.fieldnames or not required.issubset(reader.fieldnames):
-            missing = sorted(required - set(reader.fieldnames or []))
-            raise EvaluationError(f"{path.name}: missing columns: {', '.join(missing)}")
-        return list(reader)
+        headers = reader.fieldnames or []
+        if len(headers) != len(set(headers)):
+            raise EvaluationError(f"{path.name}: duplicate CSV columns")
+        if set(headers) != required:
+            missing = sorted(required - set(headers))
+            extra = sorted(set(headers) - required)
+            details = []
+            if missing:
+                details.append("missing: " + ", ".join(missing))
+            if extra:
+                details.append("unexpected: " + ", ".join(extra))
+            raise EvaluationError(f"{path.name}: invalid columns ({'; '.join(details)})")
+        rows = []
+        for row_number, row in enumerate(reader, start=2):
+            if row_number - 1 > max_rows:
+                raise EvaluationError(f"{path.name}: exceeds {max_rows} data rows")
+            if None in row or any(value is None for value in row.values()):
+                raise EvaluationError(f"{path.name}: malformed field count on row {row_number}")
+            rows.append(row)
+        return rows
+
+
+def _safe_token(value: str, field: str, maximum: int = MAX_IDENTIFIER_LENGTH) -> str:
+    token = value.strip()
+    if not token or len(token) > maximum or any(
+        ord(char) < 32 or 127 <= ord(char) <= 159 or
+        unicodedata.category(char) == "Cf"
+        for char in token
+    ):
+        raise EvaluationError(f"invalid {field}: empty, oversized, or contains control/format characters")
+    return token
 
 
 def _number(value: str, field: str, *, minimum: float | None = None) -> float:
@@ -54,11 +90,17 @@ def evaluate(recordings_csv: Path, detections_csv: Path, truth_csv: Path,
         raise EvaluationError("matching tolerance must be finite and non-negative")
 
     recordings: dict[str, dict] = {}
-    for row in _read_csv(recordings_csv, RECORDING_COLUMNS):
-        rid = row["recording_id"].strip()
-        speaker = row["speaker_id"].strip()
+    for row in _read_csv(recordings_csv, RECORDING_COLUMNS, MAX_RECORDINGS):
+        rid = _safe_token(row["recording_id"], "recording_id")
+        speaker = _safe_token(row["speaker_id"], "speaker_id", MAX_METADATA_LENGTH)
         row_split, label = row["split"].strip(), row["label"].strip()
         condition = row["condition"].strip() or "unspecified"
+        if len(condition) > MAX_METADATA_LENGTH or any(
+            ord(char) < 32 or 127 <= ord(char) <= 159 or
+            unicodedata.category(char) == "Cf"
+            for char in condition
+        ):
+            raise EvaluationError(f"invalid condition for {rid!r}")
         duration = _number(row["duration_seconds"], "duration_seconds", minimum=0.000001)
         if not rid or not speaker or not condition or row_split not in SPLITS or label not in LABELS:
             raise EvaluationError(f"invalid recording metadata for {rid!r}")
@@ -72,8 +114,8 @@ def evaluate(recordings_csv: Path, detections_csv: Path, truth_csv: Path,
         raise EvaluationError("recordings must contain only the requested split")
 
     detections: dict[str, list[tuple[float, float]]] = defaultdict(list)
-    for row in _read_csv(detections_csv, DETECTION_COLUMNS):
-        rid = row["recording_id"].strip()
+    for row in _read_csv(detections_csv, DETECTION_COLUMNS, MAX_DETECTION_EVENTS):
+        rid = _safe_token(row["recording_id"], "recording_id")
         if rid not in recordings:
             raise EvaluationError(f"detection references unknown recording: {rid!r}")
         timestamp = _number(row["timestamp_seconds"], "timestamp_seconds", minimum=0)
@@ -86,8 +128,8 @@ def evaluate(recordings_csv: Path, detections_csv: Path, truth_csv: Path,
             detections[rid].append((timestamp, confidence))
 
     truths: dict[str, list[tuple[float, float]]] = defaultdict(list)
-    for row in _read_csv(truth_csv, TRUTH_COLUMNS):
-        rid = row["recording_id"].strip()
+    for row in _read_csv(truth_csv, TRUTH_COLUMNS, MAX_TRUTH_EVENTS):
+        rid = _safe_token(row["recording_id"], "recording_id")
         if rid not in recordings:
             raise EvaluationError(f"ground truth references unknown recording: {rid!r}")
         if recordings[rid]["label"] != "positive":
