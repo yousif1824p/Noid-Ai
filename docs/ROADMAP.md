@@ -92,7 +92,7 @@
 ## Stage 5 — optional remote services
 - [x] Specify a versioned, opt-in HTTP/SSE contract, including transport, authentication, bounded payloads, streaming events, cancellation, and local permission boundaries; connector implementation remains pending.
 - [x] Add bounded JSON serialization for validated remote chat requests, emitting only request IDs and plain-text user/assistant messages; verify exact schema, Unicode round-tripping, unsupported-role rejection, and UTF-8/body limits with unit tests. This does not perform network I/O.
-- [ ] Add an opt-in remote connector with secure transport and explicit configuration.
+- [x] Implement the opt-in remote HTTPS/SSE client with explicit configuration, Android Keystore-backed bearer-token storage, bounded request/response handling, cancellation, and strict event validation; covered by remote transport, settings, policy, and adapter unit tests. Live interoperability with a deployed compatible server remains pending.
 - [ ] Keep untrusted execution isolated on a properly sandboxed remote environment.
 
 ## Stage 6 — personal private release (no public distribution)

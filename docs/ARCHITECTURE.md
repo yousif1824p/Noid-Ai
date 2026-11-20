@@ -20,7 +20,7 @@ AssistantEngine defines the inference boundary, including explicit runtime statu
 
 ## Optional remote compute
 
-For workloads that exceed the device, an optional service may expose a versioned HTTP API and Server-Sent Events (SSE). Keep it disabled unless configured by the user.
+The Android client now implements an opt-in HTTPS POST/SSE connector for workloads that exceed the device. The user must enable it, configure an HTTPS endpoint, and explicitly choose the remote-send action for each turn. Optional bearer credentials are encrypted with an Android Keystore AES-GCM key. The client disables redirects, bounds request and response sizes/timeouts, strictly validates UTF-8 and SSE request IDs/sequences/terminal events, supports cancellation, and sends only bounded conversation text—not memories, images, tools, permissions, audit data, or device state. Remote output is plain text and cannot grant local tool permissions. Unit tests use controlled HTTPS connections; a deployed compatible server and live end-to-end interoperability have not yet been verified. Keep the connector disabled by default.
 
 ## Voice activation
 
