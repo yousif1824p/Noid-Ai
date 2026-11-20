@@ -37,4 +37,34 @@ class ProjectPreviewSecretRedactorTest {
         val line = """password="do-not-show" """
         assertEquals("""password="[REDACTED]" """, ProjectPreviewSecretRedactor.redact(line))
     }
+
+    @Test fun redactsUnquotedSecretsAndAuthorizationBearerHeaders() {
+        val inputs = listOf(
+            "api_key=plain-secret-value",
+            "refresh_token: refresh-secret-value",
+            "Authorization: Bearer bearer-secret-value",
+            "private_key = private-secret-value"
+        )
+        inputs.forEach { line ->
+            val redacted = ProjectPreviewSecretRedactor.redact(line)
+            assertTrue(redacted.contains("[REDACTED]"))
+            assertFalse(
+                redacted.contains("plain-secret-value") ||
+                    redacted.contains("refresh-secret-value") ||
+                    redacted.contains("bearer-secret-value") ||
+                    redacted.contains("private-secret-value")
+            )
+        }
+    }
+
+    @Test fun preservesTrailingJsonAndYamlDelimitersWhenRedactingUnquotedValues() {
+        assertEquals(
+            """{"api_key":"[REDACTED]"}""",
+            ProjectPreviewSecretRedactor.redact("""{"api_key":plain-secret}""")
+        )
+        assertEquals(
+            "password: [REDACTED] # keep comment",
+            ProjectPreviewSecretRedactor.redact("password: plain-secret # keep comment")
+        )
+    }
 }
