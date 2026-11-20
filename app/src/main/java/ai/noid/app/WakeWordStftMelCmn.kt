@@ -19,7 +19,8 @@ internal class WakeWordStftMelCmn {
     ): FloatArray {
         require(samples.size == SAMPLE_COUNT) { "Expected exactly 16000 audio samples" }
         require(samples.all(Float::isFinite)) { "Audio contains non-finite samples" }
-        require(hannWindow.size == WINDOW_SIZE && hannWindow.all(Float::isFinite)) {
+        require(hannWindow.size == WINDOW_SIZE &&
+            hannWindow.all { it.isFinite() && it in 0f..1f }) {
             "Invalid Hann window"
         }
         require(melFilterbank.size == MEL_BINS * FFT_BINS &&

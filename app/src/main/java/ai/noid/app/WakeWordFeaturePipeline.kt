@@ -47,7 +47,7 @@ internal class WakeWordFeaturePipeline(
         // Validate every stateless DSP input before advancing any retained SOS
         // state. A bad window/filterbank must not partially consume this chunk.
         require(hannWindow.size == WakeWordStftMelCmn.WINDOW_SIZE &&
-            hannWindow.all(Float::isFinite)) {
+            hannWindow.all { it.isFinite() && it in 0f..1f }) {
             "Invalid Hann window"
         }
         require(melFilterbank.size ==

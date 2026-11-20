@@ -105,6 +105,21 @@ class WakeWordFeaturePipelineTest {
     }
 
     @Test
+    fun rejectsOutOfRangeHannBeforeMutatingFilterState() {
+        val pipeline = pipelineWithStatefulFilter()
+        val invalidHann = hann().also { it[200] = 1.01f }
+        try {
+            pipeline.extract(FloatArray(16_000), invalidHann, mel())
+            throw AssertionError("Expected invalid Hann value rejection")
+        } catch (_: IllegalArgumentException) {
+            // expected
+        }
+        val valid = FloatArray(16_000) { if (it == 0) 0.5f else 0f }
+        val expected = pipelineWithStatefulFilter().extract(valid, hann(), mel())
+        assertArrayEquals(expected, pipeline.extract(valid, hann(), mel()), 0f)
+    }
+
+    @Test
     fun rejectsInvalidMelBeforeMutatingFilterState() {
         val pipeline = pipelineWithStatefulFilter()
         val invalidMel = mel().also { it[0] = -1f }

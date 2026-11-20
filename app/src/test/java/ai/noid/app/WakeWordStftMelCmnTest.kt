@@ -58,6 +58,12 @@ class WakeWordStftMelCmnTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun rejectsHannWeightsOutsideUnitRange() {
+        val window = hann().also { it[200] = 1.01f }
+        extractor.extract(FloatArray(16_000), window, mel())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun rejectsNegativeMelWeights() {
         val matrix = mel()
         matrix[0] = -1f
