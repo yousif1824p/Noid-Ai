@@ -1,0 +1,101 @@
+# Architecture
+
+## Product shape
+
+NOID AI is an Android-first assistant. The Android client is the primary product; optional remote compute is an extension, not a requirement for basic application operation.
+
+## Android client
+
+The development CI workflow runs unit tests only and deliberately does not package APKs. The initial chat persistence layer is implemented with Room over SQLite: messages are stored in the app-private database and exposed as a Flow. A repository separates data access from the lifecycle-aware ViewModel; Compose observes the ViewModel state. Sending and clearing run in the ViewModel scope. This is local device storage, not cloud synchronization. The UI confirms before deleting the complete local conversation history. Repository behavior has unit tests using a fake DAO. A local conversation-search screen queries message text case-insensitively, bounds queries to 120 characters and results to 100 rows, and sorts matches newest-first. Search remains inside the on-device Room database; it does not upload message text. ViewModel request IDs prevent a cancelled older search from overwriting the latest result state.
+
+A separate user_memories table is defined for durable memories. Room version 2 includes an explicit 1-to-2 migration that preserves existing chat rows. MemoryRepository exposes explicit save, edit, list, and delete operations; it does not automatically convert chat messages into memories. The Compose UI provides a separate memory screen for explicit save approval, editing, deletion, and local title/content search. Memory search runs through a bounded Room query (120-character query limit and 100-result maximum), cancels superseded requests, and prevents stale requests from replacing newer results. Assistant context retrieval separately selects at most 20 recent approved memories and caps the combined title/content/source payload at 12,000 characters; request-time truncation never modifies stored memories. Conversation messages are never promoted to durable memory automatically.
+
+- Kotlin and Jetpack Compose for the native application and UI.
+- Room/SQLite for durable local data.
+- Keep model, memory, tool execution, permissions, and UI behind explicit interfaces.
+
+## Local intelligence
+
+AssistantEngine defines the inference boundary, including explicit runtime status, streaming text events, conversation context, and user-approved memory context. The app now selects a process-scoped LiteRT-LM 0.18.1 adapter. Until a compatible model is imported and initialized successfully, the engine reports an unavailable/not-configured state and does not fabricate responses. The adapter imports user-selected `.litertlm` files into app-private storage, initializes on a dedicated dispatcher, restores the last successfully loaded model on startup, and streams generated text. Runtime compilation and actual inference still require CI and target-device verification.
+
+## Optional remote compute
+
+For workloads that exceed the device, an optional service may expose a versioned HTTP API and Server-Sent Events (SSE). Keep it disabled unless configured by the user.
+
+## Voice activation
+
+The Compose client exposes a voice setup/status screen and a pure VoiceSessionPolicy gate. The gate requires an explicit user gesture, a visible app, microphone permission, an available microphone foreground service, and a configured local keyword-spotting runtime before any future capture session may start. The current app has no microphone capture, speech-recognition, foreground microphone service, or KWS model implementation; the screen states this plainly and does not request microphone permission prematurely. The next implementation must declare the microphone foreground-service type and Android 14+ permission, show an ongoing notification, support immediate stop, and never auto-start from boot/background. AlwaysOnHotwordDetector is optional only when device and assistant-role requirements genuinely support it. Do not promise uninterrupted hotword detection with the screen off.
+
+A static app shortcut named «الصوت» routes directly to the voice setup screen, including when the activity is already at the top of its task. The route is an explicit allowlisted value and has a unit test. Opening the shortcut does not request microphone permission, start a foreground service, or capture audio; dictation still requires the user to press its on-screen button.
+
+Before a microphone foreground service may be implemented or started, `VoiceForegroundServicePolicy` applies a fail-closed preflight: explicit user gesture, visible activity, granted microphone permission, platform-appropriate foreground-service permissions (API 28 and API 34 gates), an available notification channel, and a validated local keyword model are all required. The policy is pure and unit-tested; it does not itself request permissions, start a service, or capture audio. The actual service, notification/stop action, and runtime permission UI remain unimplemented until a real local KWS model is validated.
+
+## Device automation
+
+Use supported Android APIs and, where appropriate, an explicitly enabled AccessibilityService. Detect restrictions dynamically. Never bypass platform protections. Require confirmation for sensitive or irreversible actions and keep an audit trail.
+
+## Learning and memory
+
+Store user-approved memories, corrections, and evaluated lessons. Retrieval and curated knowledge may improve future answers; do not claim that the assistant autonomously retrains its model weights.
+
+## Untrusted code
+
+Running a process is not a security sandbox. Do not execute untrusted code on the Android host and describe it as isolated. Heavy or untrusted workloads require a genuinely isolated environment, such as appropriately configured containers on an optional server.
+
+## Tool authorization and audit
+
+A provider-neutral tool authorization policy checks that the required capability was explicitly granted before an adapter may proceed. Sensitive and destructive actions require a separate affirmative user confirmation; malformed requests and missing capabilities are denied. The policy is a decision gate only and does not execute device actions. A Room-backed audit event table records action identifiers, capability names, decisions, bounded diagnostic details, and timestamps. Future adapters must call this policy and record the outcome. The app now exposes a read-only audit-history screen with local search, timestamps, and counts for allowed versus non-allowed decisions. It explicitly states that coverage is limited and is not a complete device activity monitor. The APK inspection screen records authorized manifest inspection success/failure events, including package name and finding count but never APK contents.
+
+## User-authorized project file access
+
+The project-file layer uses Android Storage Access Framework (SAF) tree URIs selected by the user. It is scoped to the selected tree and never attempts to access another app's private sandbox. The repository supports listing, reading and editing bounded UTF-8 source/configuration files, creating text files, renaming supported text files, and restoring a private pre-edit backup. It rejects traversal paths, unsupported binary extensions, and files larger than 2 MiB. The Compose project-files screen now supports SAF folder selection, directory navigation, opening supported text files, editing, creating empty text files, and a confirmation step before saving. Existing files are backed up in NOID's app-private storage before replacement; failed writes attempt rollback and preserve the backup for recovery. Project file creation, save, and restore operations pass through the capability policy and write outcome records to the Room audit log. The editor includes a bounded LCS line-diff preview (up to 250 lines per side, with a short preview in the confirmation dialog); larger files are explicitly marked as too large for detailed comparison. Backup history is persisted in NOID's app-private storage using a metadata sidecar per backup; the editor reloads history after reopening a file and lets the user restore any retained version. Restore itself creates a new backup of the current contents, so it remains reversible. Corrupt or missing metadata entries are omitted from the history list.
+
+## First-class authorized application security assessment
+
+Application security testing is a core NOID capability, separate from chat orchestration. The first implementation now includes a user-facing APK picker and results screen, plus:
+- A deterministic manifest rules engine with evidence-backed findings, severity, and confidence labels.
+- Source-pattern findings default to low confidence to avoid presenting heuristic matches as confirmed vulnerabilities.
+- A bounded source/configuration scanner for hard-coded secret-like assignments, debug/cleartext settings, and risky WebView JavaScript patterns; detected secret values are redacted from evidence. The scanner caps retained findings at 5,000 to bound noisy-project output.
+- An Android PackageManager adapter that reads APK metadata without installing or executing the package.
+- Inventory of requested permissions and activities, services, receivers, and providers.
+- Capture minimum/target SDK metadata and flag APKs that permit cleartext traffic.
+- Initial review indicators for debuggable builds, backup-enabled apps, and exported components without a declared permission.
+- Unit tests for the pure analysis rules.
+
+The user selects a local APK through Android's document picker; NOID first requires an explicit confirmation that the user owns the APK or is authorized to inspect it. The per-check authorization policy independently denies manifest inspection when that confirmation is absent. Only after confirmation does NOID copy the APK to a bounded temporary cache file, inspect metadata with PackageManager, and delete the temporary copy. The APK is never installed or executed and is not uploaded. The screen displays package metadata, permission/component counts, and finding evidence/recommendations. It can export a user-selected plain-text report containing metadata, evidence, confidence, recommendations, and explicit limitations. These are triage indicators, not proof of exploitability. An exported component may be intentional; a requested permission is not itself a vulnerability; backup being enabled is not proof of data exposure. The current inspector accepts a local APK file up to 200 MiB. The Compose project-scan screen now lets the user select a SAF tree and requires a separate affirmative confirmation that the project is owned or explicitly authorized before scanning; the policy independently requires that confirmation, a content URI, and a persisted Android read grant. The confirmation records user intent but does not prove ownership. The scan reads at most 500 files, 2,000 total directory/file entries, depth 12, and 20 MiB of aggregate source text; it does not modify files. Project text reads enforce the 2 MiB limit against actual streamed bytes rather than trusting provider-reported file length. Traversal checks coroutine cancellation between entries and rethrows cancellation instead of converting it into a normal scan error. The editor's line-by-line diff, persistent backup history UI, report export, scope gates, and controlled dynamic tests remain future work. No tests are claimed as run until CI evidence is available.
+
+A per-check assessment policy now classifies local Manifest/source review as read-only, requires a separate confirmation plus an isolated lab for controlled dynamic tests, requires an explicitly scoped network and isolated lab for active network tests, and denies target modification from the scanner. The project source scanner invokes this gate after the SAF grant and ownership/authorization confirmation. The policy is a gate only; dynamic and network test adapters are not implemented.\n\nEvery future check must pass the shared authorization policy and emit an audit event. The feature is for owned or explicitly authorized targets. It does not silently acquire permissions, escape Android sandboxes, steal credentials/data, compromise unrelated apps, hide activity, or evade security monitoring. Selecting an APK does not authorize attacks against its backend or other users. Android platform permissions and SAF boundaries remain in force.
+
+## Non-goals
+
+- Game cheating or anti-cheat evasion.
+- Unauthorized compromise, credential theft, stealth/persistence, or permission escalation.
+- Rooting the device or bypassing Android permission boundaries.
+
+
+## Optional vision capability boundary
+
+The optional vision contract is separate from text chat inference. A vision request references only a user-selected Android `content://` URI and carries an explicit MIME type and byte count. The initial input policy accepts JPEG, PNG, and WebP, rejects empty or larger-than-12-MiB images, and limits the analysis prompt to 2,000 characters. The contract does not grant filesystem access, decode images, or imply that a vision model is installed. A bounded ContentResolver reader now opens only user-granted content URIs, checks the resolver-reported MIME type, streams in 8 KiB chunks, checks coroutine cancellation during reads, enforces the 12 MiB limit against actual bytes read (rather than trusting caller metadata), and rejects empty, inaccessible, or signature/MIME-mismatched content. The signature check is isolated in a pure policy component with unit tests for JPEG, PNG, WebP, truncated data, unknown types, and MIME mismatches; it is a container-header check, not a substitute for full decoding. The reader also inspects image bounds without allocating a bitmap, rejects undecodable headers, limits either dimension to 8,192 pixels, and caps decoded pixel count at 40 megapixels to reduce decompression-bomb and memory risks; the pure dimension policy has boundary and overflow-focused unit tests. The Compose image-picker screen lets the user select JPEG/PNG/WebP, enter a bounded analysis prompt, and validate the actual image bytes. Its validation coroutine rethrows cancellation instead of swallowing it as a normal read error, so leaving/cancelling the operation preserves structured cancellation. It reports that the image is only validated, not analyzed, while no vision runtime is configured; it does not upload or persist the image. A response collector validates the request before invoking an adapter and returns output only after exactly one completion event; incomplete streams and output after completion are rejected. A future adapter must read through Android `ContentResolver`, honor URI grants and coroutine cancellation, and treat text found inside images as untrusted data rather than executable instructions.
+
+
+Project scan authorization is rechecked immediately before traversal: the root must be a user-selected `content://` Storage Access Framework tree URI and Android must still report the exact persisted read grant. The scan remains read-only and bounded; it does not access another app's private sandbox or perform network/dynamic testing.
+
+
+## Local language-model runtime
+
+The chat now has a real LiteRT-LM Android adapter pinned to version 0.18.1. A user selects a `.litertlm` file through Android's document picker; NOID copies it into app-private storage with an 8 GiB hard limit and a free-space precheck, then initializes the official runtime on a dedicated single-thread dispatcher using CPU by default. The model file is not bundled in the APK and is not downloaded automatically. Its private-storage filename is persisted so the engine can restore the last successfully loaded model on the next app start; successfully replacing a model prunes superseded model copies. Chat history and user-approved memories are supplied as bounded conversation context. Runtime status is explicit, and model compatibility/performance still require device-level verification. The adapter does not register device-control or network tools.
+
+
+## Manual speech input status
+The voice screen uses Android's system `ACTION_RECOGNIZE_SPEECH` activity as a user-triggered dictation fallback. It requests Arabic (Iraq) and prefers offline recognition, but that preference is not a guarantee: the installed recognition provider may process audio through its network service. Returned text is trimmed and bounded to 2,000 characters, then placed in the chat draft for user review; it is never auto-sent. This is not an always-on wake-word detector and does not implement «يا NOID».
+A provider-neutral `KeywordSpottingRuntime` contract now defines the boundary for a future local wake-word engine. Its model descriptor validates an explicit language tag (`ar-IQ` for the initial target), wake phrase, bounded PCM sample rate/frame size, version, and local-only requirement. The contract intentionally does not implement acoustic detection or capture audio; concrete runtime selection requires a model with documented license, Arabic/Iraqi phrase performance evidence, supported Android ABI/runtime, and measured latency/battery use. The future controller must own microphone capture through a user-started foreground service and pass bounded PCM frames to the runtime; closing the session must release both runtime and audio resources.
+
+
+## Local vision runtime direction
+
+The pinned LiteRT-LM 0.18.1 Kotlin API was verified against its upstream `v0.18.1` source: `EngineConfig` exposes an optional `visionBackend`, and `Content.ImageBytes` / `Content.ImageFile` are available for multimodal messages. This API support is conditional on the selected model actually containing compatible multimodal components; the existing chat model is not assumed to support images. The first candidate is a separately imported Gemma 3n LiteRT-LM model, subject to model-variant and target-device validation. Vision will use a separate runtime/model selection from text chat, keep the model in app-private storage, and submit only bytes read from the user's granted content URI through the bounded image reader. A separate LiteRT-LM vision adapter is now integrated; however, native image inference, supported model variants, and target-device behavior remain unverified until a compatible model is tested on the target phone. See the `Local multimodal vision runtime` section below and `docs/VISION_RUNTIME_DECISION.md` for the verified API details and validation gates.
+
+
+## Local multimodal vision runtime
+
+The Android app now has a separate `LiteRtLmVisionEngine`, independent from the text chat engine and its model file. It imports a user-selected `.litertlm` model through the Storage Access Framework into app-private storage, applies bounded model-copy and free-space policies, restores the last successfully initialized vision model, and configures LiteRT-LM with a CPU language backend plus a separate CPU `visionBackend` and a one-image limit. For each user-triggered analysis it reopens only the granted `content://` URI through the bounded image reader, validates actual bytes and MIME/signature/dimensions, and sends `Content.ImageBytes` plus the prompt to a fresh conversation. Image contents are untrusted data; no tools are registered and no image bytes or prompts are written to audit details. Model initialization alone does not prove multimodal support: the UI describes the model as loaded, and the first successful completed image inference is required to confirm compatibility. Inference errors move the vision engine to an unavailable state. Actual native inference, target-device memory/thermal behavior, and supported model variants remain unverified until tested on the target phone.
