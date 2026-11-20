@@ -139,11 +139,14 @@ class KeywordSpottingAudioSessionTest {
 
 
     @Test
-    fun readExceptionReturnsSafeErrorAndClosesResources() {
+    fun readExceptionReturnsSafeErrorAndClearsPcmBuffer() {
         val source = object : Pcm16AudioSource {
             var closed = false
+            var readTarget: ShortArray? = null
             override fun start() = true
             override fun read(target: ShortArray, offset: Int, length: Int): Int {
+                readTarget = target
+                target.fill(123)
                 throw IllegalStateException("device read failed")
             }
             override fun stop() = Unit
@@ -152,6 +155,30 @@ class KeywordSpottingAudioSessionTest {
         val runtime = FakeRuntime(descriptor)
         val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
         assertEquals("تعذر قراءة إطار الصوت.", session.run())
+        assertTrue(source.readTarget!!.all { it == 0.toShort() })
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
+    }
+
+    @Test
+    fun inferenceExceptionClearsBothPcmBuffers() {
+        val source = FakeSource(listOf(frame()))
+        val runtime = object : KeywordSpottingRuntime {
+            override val descriptor = this@KeywordSpottingAudioSessionTest.descriptor
+            var inferenceFrame: ShortArray? = null
+            var closed = false
+            override fun processAudioFrame(pcm16: ShortArray): KeywordSpottingEvent? {
+                inferenceFrame = pcm16
+                throw IllegalStateException("inference failed")
+            }
+            override fun close() { closed = true }
+        }
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+
+        assertEquals("تعذر تشغيل نموذج اكتشاف الكلمة.", session.run())
+
+        assertTrue(source.lastReadTarget!!.all { it == 0.toShort() })
+        assertTrue(runtime.inferenceFrame!!.all { it == 0.toShort() })
         assertTrue(source.closed)
         assertTrue(runtime.closed)
     }
