@@ -1,0 +1,84 @@
+name: Android CI (tests only)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: noid-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dsp-generator-tests:
+    name: Wake-word DSP generator tests and Heed reference
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/wakeword-dsp/requirements-generation.txt
+      - name: Install pinned generator dependencies
+        run: python -m pip install -r tools/wakeword-dsp/requirements-generation.txt
+      - name: Run DSP generator tests
+        working-directory: tools/wakeword-dsp
+        run: python -m unittest discover -s tests -v
+      - name: Validate local KWS dataset utility and Heed importer
+        working-directory: tools/kws-dataset
+        run: python -m unittest discover -s tests -v
+      - name: Test continuous KWS evaluator
+        working-directory: tools/kws-dataset
+        run: python -m unittest discover -s tests -p 'test_evaluate_continuous.py' -v
+      - name: Generate real-Heed Kotlin parity fixtures
+        working-directory: tools/wakeword-dsp
+        run: python generate_heed_parity_fixture.py "build/heed-reference"
+      - name: Upload real-Heed parity fixtures
+        uses: actions/upload-artifact@v4
+        with:
+          name: heed-reference-fixtures
+          path: tools/wakeword-dsp/build/heed-reference/
+          if-no-files-found: error
+          retention-days: 1
+
+  unit-tests:
+    name: Android unit tests (no APK packaging)
+    needs: dsp-generator-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Download real-Heed parity fixtures
+        uses: actions/download-artifact@v4
+        with:
+          name: heed-reference-fixtures
+          path: app/src/test/resources/
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install Android SDK packages
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.4"
+      - name: Run unit tests
+        run: gradle testDebugUnitTest --stacktrace
