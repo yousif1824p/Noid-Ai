@@ -42,6 +42,10 @@ Store user-approved memories, corrections, and evaluated lessons. Retrieval and 
 
 Running a process is not a security sandbox. Do not execute untrusted code on the Android host and describe it as isolated. Heavy or untrusted workloads require a genuinely isolated environment, such as appropriately configured containers on an optional server.
 
+## Remote untrusted execution status
+
+Remote untrusted-code execution is not implemented and is not part of the HTTPS/SSE chat connector. The connector transports bounded plain-text conversation messages only; it has no code-execution, shell, file-transfer, or arbitrary-tool endpoint. A future execution service is blocked until it satisfies the isolation, network-egress, resource-quota, cancellation, artifact-handling, retention, and independent-verification gates in [REMOTE_EXECUTION_SANDBOX_REQUIREMENTS.md](REMOTE_EXECUTION_SANDBOX_REQUIREMENTS.md). A container or ordinary process alone must not be described as a security sandbox. Until those gates are met, NOID must refuse remote code execution.
+
 ## Tool authorization and audit
 
 A provider-neutral tool authorization policy checks that the required capability was explicitly granted before an adapter may proceed. Sensitive and destructive actions require a separate affirmative user confirmation; malformed requests and missing capabilities are denied. The policy is a decision gate only and does not execute device actions. A Room-backed audit event table records action identifiers, capability names, decisions, bounded diagnostic details, and timestamps. Future adapters must call this policy and record the outcome. The app now exposes a read-only audit-history screen with local search, timestamps, and counts for allowed versus non-allowed decisions. It explicitly states that coverage is limited and is not a complete device activity monitor. The APK inspection screen records authorized manifest inspection success/failure events, including package name and finding count but never APK contents.
