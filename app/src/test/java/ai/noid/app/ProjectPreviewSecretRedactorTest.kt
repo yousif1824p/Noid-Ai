@@ -59,7 +59,7 @@ class ProjectPreviewSecretRedactorTest {
 
     @Test fun preservesTrailingJsonAndYamlDelimitersWhenRedactingUnquotedValues() {
         assertEquals(
-            """{"api_key":"[REDACTED]"}""",
+            """{"api_key":[REDACTED]}""",
             ProjectPreviewSecretRedactor.redact("""{"api_key":plain-secret}""")
         )
         assertEquals(
