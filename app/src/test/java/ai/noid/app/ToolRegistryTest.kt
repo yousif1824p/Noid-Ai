@@ -529,6 +529,9 @@ class ToolRegistryTest {
         assertFalse(ToolRequest(mapOf("k".repeat(ToolRequest.MAX_KEY_LENGTH + 1) to "v")).isWithinLimits())
         assertFalse(ToolRequest(mapOf("k" to "v".repeat(ToolRequest.MAX_VALUE_LENGTH + 1))).isWithinLimits())
         assertFalse(ToolRequest(mapOf("   " to "v")).isWithinLimits())
+        assertFalse(ToolRequest(mapOf("bad\\nkey" to "v")).isWithinLimits())
+        assertFalse(ToolRequest(mapOf("hidden\\u202Ekey" to "v")).isWithinLimits())
+        assertTrue(ToolRequest(mapOf("content" to "line 1\\nline 2")).isWithinLimits())
     }
 
     @Test
