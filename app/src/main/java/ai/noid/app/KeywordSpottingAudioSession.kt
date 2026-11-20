@@ -93,6 +93,10 @@ private const val MAX_CONSECUTIVE_EMPTY_READS = 8
 /**
  * Converts arbitrary AudioRecord read sizes into exact model frames and validates
  * every frame/event at the model boundary. Call from a worker thread.
+ *
+ * Start and close are serialized so a concurrent stop cannot close the source
+ * immediately before run() starts it. close() is idempotent and may be called
+ * from the UI thread to unblock a worker blocked in read().
  */
 internal class KeywordSpottingAudioSession(
     private val source: Pcm16AudioSource,
@@ -100,6 +104,7 @@ internal class KeywordSpottingAudioSession(
     private val shouldStop: () -> Boolean,
     private val onEvent: (KeywordSpottingEvent) -> Unit
 ) : AutoCloseable {
+    private val resourceLock = Any()
     @Volatile private var closed = false
 
     fun run(): String? {
@@ -107,7 +112,12 @@ internal class KeywordSpottingAudioSession(
             val descriptor = runtime.descriptor
             if (!descriptor.isValid()) return "بيانات نموذج اكتشاف الكلمة غير صالحة."
             if (!descriptor.localOnly) return "يُسمح بنموذج محلي فقط."
-            if (!source.start()) return "تعذر بدء مصدر الصوت."
+            val started = synchronized(resourceLock) {
+                !closed && source.start()
+            }
+            if (!started) {
+                return if (closed) null else "تعذر بدء مصدر الصوت."
+            }
             val frame = ShortArray(descriptor.frameLengthSamples)
             while (!closed && !shouldStop()) {
                 var filled = 0
@@ -148,15 +158,17 @@ internal class KeywordSpottingAudioSession(
     }
 
     override fun close() {
-        if (closed) return
-        closed = true
-        try {
-            source.stop()
-        } finally {
+        synchronized(resourceLock) {
+            if (closed) return
+            closed = true
             try {
-                source.close()
+                source.stop()
             } finally {
-                runtime.close()
+                try {
+                    source.close()
+                } finally {
+                    runtime.close()
+                }
             }
         }
     }

@@ -20,11 +20,18 @@ class KeywordSpottingAudioSessionTest {
         var started = false
         var stopped = false
         var closed = false
+        var startCalls = 0
+        var stopCalls = 0
+        var closeCalls = 0
         private var chunkIndex = 0
         private var chunkOffset = 0
         private var zeroReads = 0
 
-        override fun start(): Boolean { started = true; return true }
+        override fun start(): Boolean {
+            startCalls++
+            started = true
+            return true
+        }
 
         override fun read(target: ShortArray, offset: Int, length: Int): Int {
             if (zeroReads < zeroReadsBeforeData) {
@@ -42,8 +49,8 @@ class KeywordSpottingAudioSessionTest {
             return count
         }
 
-        override fun stop() { stopped = true }
-        override fun close() { closed = true }
+        override fun stop() { stopCalls++; stopped = true }
+        override fun close() { closeCalls++; closed = true }
     }
 
     private class FakeRuntime(
@@ -52,12 +59,13 @@ class KeywordSpottingAudioSessionTest {
     ) : KeywordSpottingRuntime {
         var frames = 0
         var closed = false
+        var closeCalls = 0
         override fun processAudioFrame(pcm16: ShortArray): KeywordSpottingEvent? {
             frames++
             assertEquals(descriptor.frameLengthSamples, pcm16.size)
             return result
         }
-        override fun close() { closed = true }
+        override fun close() { closeCalls++; closed = true }
     }
 
     private fun frame(start: Int = 1) = ShortArray(80) { (it + start).toShort() }
@@ -111,7 +119,6 @@ class KeywordSpottingAudioSessionTest {
         assertTrue(runtime.closed)
     }
 
-
     @Test
     fun stopsAfterRepeatedEmptyReadsInsteadOfSpinningForever() {
         val source = FakeSource(listOf(frame()), zeroReadsBeforeData = 8)
@@ -135,5 +142,22 @@ class KeywordSpottingAudioSessionTest {
         assertEquals(1, runtime.frames)
         assertTrue(source.closed)
         assertTrue(runtime.closed)
+    }
+
+    @Test
+    fun closeIsIdempotentAndPreventsLaterMicrophoneStart() {
+        val source = FakeSource(listOf(frame()))
+        val runtime = FakeRuntime(descriptor)
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+
+        session.close()
+        session.close()
+        assertNull(session.run())
+
+        assertEquals(0, source.startCalls)
+        assertEquals(1, source.stopCalls)
+        assertEquals(1, source.closeCalls)
+        assertEquals(1, runtime.closeCalls)
+        assertEquals(0, runtime.frames)
     }
 }
