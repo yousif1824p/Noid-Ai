@@ -76,5 +76,24 @@ class ScorecardTests(unittest.TestCase):
         self.assertTrue(any("too few CSV fields" in error for error in result["errors"]))
 
 
+    def test_candidate_identifier_over_limit_is_rejected(self):
+        result = validate(self.write_rows([self.row("L1", candidate_id="x" * 81)]))
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("candidate_id" in error for error in result["errors"]))
+
+    def test_listener_identifier_control_character_is_rejected(self):
+        result = validate(self.write_rows([self.row("L1\\u202e")]))
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("listener_code" in error for error in result["errors"]))
+
+    def test_oversized_csv_is_rejected_before_parsing(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        path = Path(temp.name) / "oversized.csv"
+        path.write_text("x" * (2 * 1024 * 1024 + 1), encoding="utf-8")
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("exceeds" in error for error in result["errors"]))
+
 if __name__ == "__main__":
     unittest.main()
