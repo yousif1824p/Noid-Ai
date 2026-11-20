@@ -37,7 +37,10 @@ sealed interface KeywordSpottingEvent {
 /**
  * Implementations must not download models, transmit audio, or start capture.
  * Audio ownership and lifecycle remain with the foreground-session controller.
- * Frames must match descriptor.frameLengthSamples exactly.
+ * Frames must match descriptor.frameLengthSamples exactly. Each frame is a
+ * synchronous borrowed buffer: implementations must not retain it, mutate it,
+ * or use it after processAudioFrame returns. The caller zeroizes the buffer
+ * immediately after inference, including when inference throws.
  */
 interface KeywordSpottingRuntime : AutoCloseable {
     val descriptor: KeywordModelDescriptor
