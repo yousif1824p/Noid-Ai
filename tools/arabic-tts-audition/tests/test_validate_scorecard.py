@@ -122,6 +122,18 @@ class ScorecardTests(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertTrue(any("Cannot read valid CSV" in error for error in result["errors"]))
 
+    def test_unterminated_quoted_field_is_rejected(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        path = Path(temp.name) / "malformed.csv"
+        path.write_text(
+            ",".join(COLUMNS) + "\n" + '"candidate-a,msa,L1,4,3,5,4,5,4\n',
+            encoding="utf-8",
+        )
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("Cannot read valid CSV" in error for error in result["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()
