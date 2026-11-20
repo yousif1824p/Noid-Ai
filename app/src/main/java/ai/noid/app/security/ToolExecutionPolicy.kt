@@ -26,9 +26,14 @@ class ToolExecutionPolicy {
     private fun hasSafeMetadata(action: ToolAction): Boolean {
         if (action.actionId.isBlank() || action.actionId.length > MAX_ACTION_ID_CHARS) return false
         if (action.description.isBlank() || action.description.length > MAX_DESCRIPTION_CHARS) return false
-        if (action.actionId.any { it.isISOControl() } || action.description.any { it.isISOControl() }) return false
+        if (containsUnsafeMetadataCharacters(action.actionId) || containsUnsafeMetadataCharacters(action.description)) return false
         return action.actionId.all { it.isLetterOrDigit() || it in "._:-" }
     }
+
+    private fun containsUnsafeMetadataCharacters(value: String): Boolean =
+        value.any {
+            it.isISOControl() || Character.getType(it) == Character.FORMAT.toInt()
+        }
 
     private companion object {
         const val MAX_ACTION_ID_CHARS = 128
