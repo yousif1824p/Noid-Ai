@@ -121,6 +121,43 @@ class KeywordSpottingAudioSessionTest {
         assertTrue(runtime.closed)
     }
 
+
+    @Test
+    fun readExceptionReturnsSafeErrorAndClosesResources() {
+        val source = object : Pcm16AudioSource {
+            var closed = false
+            override fun start() = true
+            override fun read(target: ShortArray, offset: Int, length: Int): Int {
+                throw IllegalStateException("device read failed")
+            }
+            override fun stop() = Unit
+            override fun close() { closed = true }
+        }
+        val runtime = FakeRuntime(descriptor)
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+        assertEquals("تعذر قراءة إطار الصوت.", session.run())
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
+    }
+
+    @Test
+    fun callbackExceptionReturnsSafeErrorAndClosesResources() {
+        val source = FakeSource(listOf(frame()))
+        val runtime = FakeRuntime(
+            descriptor,
+            KeywordSpottingEvent.Detected("يا NOID", 0.95f)
+        )
+        val session = KeywordSpottingAudioSession(
+            source, runtime, { false }
+        ) {
+            throw IllegalStateException("listener failed")
+        }
+        assertEquals("تعذر تسليم حدث اكتشاف الكلمة.", session.run())
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
+    }
+
+
     @Test
     fun stopsAfterRepeatedEmptyReadsInsteadOfSpinningForever() {
         val source = FakeSource(listOf(frame()), zeroReadsBeforeData = 8)
