@@ -1,6 +1,6 @@
 # NOID AI
 
-A private, independent Android-first personal AI assistant project.
+An independent Android-first personal AI assistant project. The source repository is public by the owner's explicit choice; the app and any APK remain for personal use only.
 
 ## Project goals
 
@@ -8,7 +8,7 @@ A private, independent Android-first personal AI assistant project.
 - Conversational interface for general assistance, programming, visual analysis, and authorized defensive cybersecurity work.
 - Local-first foundation with explicit capability boundaries and optional external compute.
 - User-controlled memory, transparent actions, and confirmation before sensitive operations.
-- Private APK distribution; no public app-store release is planned.
+- Personal APK use only; no public app-store release or APK distribution is planned.
 
 ## Safety boundaries
 

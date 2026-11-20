@@ -101,7 +101,7 @@
 - [ ] Build, test, and verify the signed APK only after development is complete.
 - [ ] Prepare a private, locally retained personal release package with checksums and upgrade/restore instructions; no public publishing or public distribution.
 
-**Release constraint:** NOID AI is for the user's personal use only. Keep the repository private; do not publish to app stores, create public releases, or distribute the APK publicly. No APK build or release packaging is part of intermediate development. A personal APK may be built, tested, and signed only after all planned capabilities, integration, and tests are complete and reviewed, with the user's explicit approval.
+**Release constraint:** NOID AI is for the user's personal use only. The source repository is public by the owner's explicit choice. Treat every commit, issue, workflow log, and file as public; never commit credentials, tokens, signing keys, personal data, or private datasets. The application and any APK remain for personal use only: do not publish APKs, app-store releases, or public binary releases. No APK build or release packaging is part of intermediate development. A personal APK may be built, tested, and signed only after all planned capabilities, integration, and tests are complete and reviewed, with the user's explicit approval.
 
 Each stage must be tested and reviewed before proceeding. Checklist items are not complete until evidence is available.
 

@@ -1,5 +1,9 @@
 # Security Notice
 
+## Public repository warning
+
+This source repository is intentionally public. Treat every committed file, issue, pull request, and workflow log as publicly visible. Never add passwords, access tokens, signing keys, private model/data files, personal information, or other secrets. A private-use app does not make a public repository private.
+
 NOID AI is a personal assistant project for lawful use, learning, and authorized defensive security work.
 
 ## Allowed security scope
