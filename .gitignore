@@ -1,0 +1,51 @@
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material — NEVER commit
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+keys/
+signing/
+secrets/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+**/*credentials*
+**/*secret*
+*.token
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local test artifacts
+*.log
+*.tmp
