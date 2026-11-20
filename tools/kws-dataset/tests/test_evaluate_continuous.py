@@ -161,7 +161,7 @@ class ContinuousEvaluationTest(unittest.TestCase):
     def test_rejects_unterminated_quoted_csv_field(self):
         self.fixture()
         self.recordings.write_text(
-            "recording_id,speaker_id,split,label,condition,duration_seconds\\n"
+            "recording_id,speaker_id,split,label,condition,duration_seconds\n"
             + '"rec-1,spk-a,final_test,positive,quiet,20\n',
             encoding="utf-8",
         )
