@@ -518,6 +518,32 @@ class ToolRegistryTest {
         }
     }
 
+    @Test
+    fun requestLimitsAcceptExactBoundariesAndRejectEachOverflow() {
+        val maxArguments = (1..ToolRequest.MAX_ARGUMENTS).associate { "k$it" to "v" }
+        assertTrue(ToolRequest(maxArguments).isWithinLimits())
+        assertTrue(ToolRequest(mapOf("k".repeat(ToolRequest.MAX_KEY_LENGTH) to "v")).isWithinLimits())
+        assertTrue(ToolRequest(mapOf("k" to "v".repeat(ToolRequest.MAX_VALUE_LENGTH))).isWithinLimits())
+
+        assertFalse(ToolRequest((1..(ToolRequest.MAX_ARGUMENTS + 1)).associate { "k$it" to "v" }).isWithinLimits())
+        assertFalse(ToolRequest(mapOf("k".repeat(ToolRequest.MAX_KEY_LENGTH + 1) to "v")).isWithinLimits())
+        assertFalse(ToolRequest(mapOf("k" to "v".repeat(ToolRequest.MAX_VALUE_LENGTH + 1))).isWithinLimits())
+        assertFalse(ToolRequest(mapOf("   " to "v")).isWithinLimits())
+    }
+
+    @Test
+    fun requestArgumentsRemainBoundedWhenKeysAndValuesAreMixed() {
+        val request = ToolRequest(
+            mapOf(
+                "path" to "project/src/Main.kt",
+                "operation" to "read",
+                "description" to "x".repeat(128)
+            )
+        )
+        assertTrue(request.isWithinLimits())
+        assertEquals(3, request.arguments.size)
+    }
+
     private fun registry(dao: ToolAuditDao = FakeAuditDao()): ToolRegistry =
         ToolRegistry(ToolExecutionCoordinator(), ToolAuditRepository(dao))
 
