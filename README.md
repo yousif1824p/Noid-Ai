@@ -16,7 +16,7 @@ NOID AI is intended for lawful, authorized use. It must not provide cheating, st
 
 ## Current status
 
-**Current status:** The Android app includes local chat persistence, user-approved memory, LiteRT-LM local and multimodal vision adapters, tool approval/audit, SAF project-file operations, static APK/source assessment, voice setup/manual dictation, and an opt-in remote HTTPS/SSE client. Target-device local/vision inference and continuous microphone hotword capture are not verified; a real Arabic «يا NOID» detector is not integrated. Remote-client unit tests use controlled HTTPS connections; live-server interoperability remains pending. CI runs Python DSP/dataset checks and Android unit tests only; it does not package APKs. APK packaging remains deferred until development is complete and the user explicitly approves the final build.
+The Android app includes local chat persistence, user-approved memory, LiteRT-LM local and multimodal vision adapters, tool approval/audit, SAF project-file operations, static APK/source assessment, voice setup/manual dictation, and an opt-in remote HTTPS/SSE client. Target-device local/vision inference and continuous microphone hotword capture are not verified; a real Arabic «يا NOID» detector is not integrated. Remote-client unit tests use controlled HTTPS connections; live-server interoperability remains pending. CI runs Python DSP/dataset checks and Android unit tests only; it does not package APKs. APK packaging remains deferred until development is complete and the user explicitly approves the final build.
 
 ## Documentation
 
