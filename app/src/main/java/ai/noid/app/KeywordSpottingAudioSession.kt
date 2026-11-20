@@ -112,6 +112,7 @@ internal class KeywordSpottingAudioSession(
     @Volatile private var closed = false
 
     fun run(): String? {
+        var frameToClear: ShortArray? = null
         try {
             val descriptor = runtime.descriptor
             if (!descriptor.isValid()) return "بيانات نموذج اكتشاف الكلمة غير صالحة."
@@ -123,6 +124,7 @@ internal class KeywordSpottingAudioSession(
                 return if (closed) null else "تعذر بدء مصدر الصوت."
             }
             val frame = ShortArray(descriptor.frameLengthSamples)
+            frameToClear = frame
             while (!closed && !shouldStop()) {
                 var filled = 0
                 var consecutiveEmptyReads = 0
@@ -147,12 +149,19 @@ internal class KeywordSpottingAudioSession(
                 if (closed || shouldStop()) break
                 val frameError = KeywordSpottingBoundaryPolicy.validateAudioFrame(frame, descriptor)
                 if (frameError != null) return frameError
+                val inferenceFrame = frame.copyOf()
                 val event = try {
-                    synchronized(runtimeLock) {
-                        if (closed) null else runtime.processAudioFrame(frame.copyOf())
+                    try {
+                        synchronized(runtimeLock) {
+                            if (closed) null else runtime.processAudioFrame(inferenceFrame)
+                        }
+                    } catch (_: Exception) {
+                        return "تعذر تشغيل نموذج اكتشاف الكلمة."
                     }
-                } catch (_: Exception) {
-                    return "تعذر تشغيل نموذج اكتشاف الكلمة."
+                } finally {
+                    // The runtime receives a private frame copy; clear it as soon
+                    // as inference finishes, including exceptional exits.
+                    inferenceFrame.fill(0)
                 }
                 if (event != null) {
                     val eventError = KeywordSpottingBoundaryPolicy.validateEvent(event, descriptor)
@@ -175,6 +184,7 @@ internal class KeywordSpottingAudioSession(
             }
             return null
         } finally {
+            frameToClear?.fill(0)
             close()
         }
     }
