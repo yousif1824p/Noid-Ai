@@ -8,14 +8,9 @@ import org.junit.Test
 
 class KeywordSpottingAudioSessionTest {
     private val descriptor = KeywordModelDescriptor(
-        modelId = "test-local",
-        displayName = "Test",
-        languageTag = "ar-IQ",
-        wakePhrase = "يا NOID",
-        sampleRateHz = 16_000,
-        frameLengthSamples = 4,
-        localOnly = true,
-        modelVersion = "1"
+        modelId = "test-local", displayName = "Test", languageTag = "ar-IQ",
+        wakePhrase = "يا NOID", sampleRateHz = 16_000, frameLengthSamples = 4,
+        localOnly = true, modelVersion = "1"
     )
 
     private class FakeSource(private val chunks: List<ShortArray>) : Pcm16AudioSource {
@@ -25,13 +20,10 @@ class KeywordSpottingAudioSessionTest {
         private var chunkIndex = 0
         private var chunkOffset = 0
 
-        override fun start(): Boolean {
-            started = true
-            return true
-        }
+        override fun start(): Boolean { started = true; return true }
 
         override fun read(target: ShortArray, offset: Int, length: Int): Int {
-            val chunk = chunks.getOrNull(chunkIndex) ?: return 0
+            val chunk = chunks.getOrNull(chunkIndex) ?: return -1
             val count = minOf(length, chunk.size - chunkOffset)
             chunk.copyInto(target, offset, chunkOffset, chunkOffset + count)
             chunkOffset += count
@@ -62,12 +54,11 @@ class KeywordSpottingAudioSessionTest {
 
     @Test
     fun joinsPartialReadsIntoExactModelFrames() {
-        val source = FakeSource(
-            listOf(shortArrayOf(1, 2), shortArrayOf(3), shortArrayOf(4, 5, 6, 7, 8))
-        )
+        val source = FakeSource(listOf(
+            shortArrayOf(1, 2), shortArrayOf(3), shortArrayOf(4, 5, 6, 7, 8)
+        ))
         val runtime = FakeRuntime(descriptor)
-        var stop = false
-        val session = KeywordSpottingAudioSession(source, runtime, { stop }, {})
+        val session = KeywordSpottingAudioSession(source, runtime, { runtime.frames >= 2 }, {})
         assertNull(session.run())
         assertEquals(2, runtime.frames)
         assertTrue(source.started)
@@ -82,18 +73,22 @@ class KeywordSpottingAudioSessionTest {
         val event = KeywordSpottingEvent.Detected("يا NOID", 0.92f)
         val runtime = FakeRuntime(descriptor, event)
         val received = mutableListOf<KeywordSpottingEvent>()
-        val session = KeywordSpottingAudioSession(source, runtime, { received.isNotEmpty() }, received::add)
+        val session = KeywordSpottingAudioSession(
+            source, runtime, { received.isNotEmpty() }, received::add
+        )
         assertNull(session.run())
         assertEquals(listOf(event), received)
     }
 
     @Test
-    fun rejectsNonLocalModelBeforeStartingMicrophone() {
+    fun rejectsNonLocalModelBeforeStartingMicrophoneAndCleansUp() {
         val source = FakeSource(emptyList())
         val runtime = FakeRuntime(descriptor.copy(localOnly = false))
         val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
         assertEquals("يُسمح بنموذج محلي فقط.", session.run())
         assertFalse(source.started)
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
     }
 
     @Test
@@ -108,14 +103,11 @@ class KeywordSpottingAudioSessionTest {
 
     @Test
     fun stopRequestEndsAfterCurrentFrameAndClosesResources() {
-        val source = FakeSource(listOf(shortArrayOf(1, 2, 3, 4), shortArrayOf(5, 6, 7, 8)))
+        val source = FakeSource(listOf(
+            shortArrayOf(1, 2, 3, 4), shortArrayOf(5, 6, 7, 8)
+        ))
         val runtime = FakeRuntime(descriptor)
-        var stop = false
-        val session = KeywordSpottingAudioSession(source, runtime, {
-            stop
-        }) {
-            stop = true
-        }
+        val session = KeywordSpottingAudioSession(source, runtime, { runtime.frames >= 1 }, {})
         assertNull(session.run())
         assertEquals(1, runtime.frames)
         assertTrue(source.closed)

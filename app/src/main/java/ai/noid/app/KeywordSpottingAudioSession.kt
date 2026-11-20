@@ -26,20 +26,14 @@ internal class AndroidPcm16AudioSource(
         if (sampleRateHz !in 8_000..48_000 || frameLengthSamples !in 80..4_800) return false
         if (recorder != null) return false
         val minimumBytes = AudioRecord.getMinBufferSize(
-            sampleRateHz,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
+            sampleRateHz, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT
         )
         if (minimumBytes <= 0) return false
-        val frameBytes = frameLengthSamples * Short.SIZE_BYTES
-        val bufferBytes = maxOf(minimumBytes, frameBytes * 2)
+        val bufferBytes = maxOf(minimumBytes, frameLengthSamples * Short.SIZE_BYTES * 2)
         val created = try {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                sampleRateHz,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferBytes
+                MediaRecorder.AudioSource.MIC, sampleRateHz, AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT, bufferBytes
             )
         } catch (_: SecurityException) {
             return false
@@ -68,20 +62,12 @@ internal class AndroidPcm16AudioSource(
         }
     }
 
-    override fun read(target: ShortArray, offset: Int, length: Int): Int {
-        val active = recorder ?: return AudioRecord.ERROR_INVALID_OPERATION
-        return active.read(target, offset, length, AudioRecord.READ_BLOCKING)
-    }
+    override fun read(target: ShortArray, offset: Int, length: Int): Int =
+        recorder?.read(target, offset, length, AudioRecord.READ_BLOCKING)
+            ?: AudioRecord.ERROR_INVALID_OPERATION
 
     override fun stop() {
-        val active = recorder ?: return
-        if (active.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-            try {
-                active.stop()
-            } catch (_: IllegalStateException) {
-                // A concurrent platform stop is already in progress.
-            }
-        }
+        recorder?.let(::stopRecorder)
     }
 
     override fun close() {
@@ -115,12 +101,12 @@ internal class KeywordSpottingAudioSession(
     @Volatile private var closed = false
 
     fun run(): String? {
-        val descriptor = runtime.descriptor
-        if (!descriptor.isValid()) return "بيانات نموذج اكتشاف الكلمة غير صالحة."
-        if (!descriptor.localOnly) return "يُسمح بنموذج محلي فقط."
-        if (!source.start()) return "تعذر بدء مصدر الصوت."
-        val frame = ShortArray(descriptor.frameLengthSamples)
         try {
+            val descriptor = runtime.descriptor
+            if (!descriptor.isValid()) return "بيانات نموذج اكتشاف الكلمة غير صالحة."
+            if (!descriptor.localOnly) return "يُسمح بنموذج محلي فقط."
+            if (!source.start()) return "تعذر بدء مصدر الصوت."
+            val frame = ShortArray(descriptor.frameLengthSamples)
             while (!closed && !shouldStop()) {
                 var filled = 0
                 while (filled < frame.size && !closed && !shouldStop()) {
