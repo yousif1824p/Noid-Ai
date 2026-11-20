@@ -44,7 +44,7 @@
 
   Current inventory and the remaining central-registry gap are tracked in `docs/TOOL_EXECUTION_INVENTORY.md`; do not mark this item complete until UI-triggered and model-triggered execution paths have one tested, consistent authorization/audit boundary.
 - [x] Show the exact relative path in the project-file approval dialog while keeping selection tokens and file contents hidden; add bounded-path/control-character regression tests.
-- [x] Validate and normalize model-supplied project paths before binding them to the app-owned SAF selection; reject traversal, absolute, oversized, and Unicode-format-control paths while preserving the empty-root selection.
+- [x] Validate and normalize model-supplied project paths before binding them to the app-owned SAF selection; reject traversal, absolute (including Windows drive-letter), oversized, and Unicode-format-control paths while preserving the empty-root selection.
 - [x] Add a provider-neutral, fail-closed proposal validation contract: registered action IDs only, bounded string arguments, and rejection of model-supplied privilege/execution fields; add unit tests. This is not yet wired to inference.
 - [x] Bound pending/approved tool tickets to eight, purge expired entries before capacity checks, and reject overflow without crashing the UI; add regression tests.
 - [x] Connect LiteRT-LM structured tool calls to the pending-approval flow, await the user decision, and return a tool response to the same conversation; see `docs/TOOL_CALL_INTEGRATION.md`. Runtime model/device validation remains pending.

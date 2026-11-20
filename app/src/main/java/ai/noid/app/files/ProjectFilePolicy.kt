@@ -26,7 +26,9 @@ object ProjectFilePolicy {
     fun normalizeRelativePath(path: String): String? {
         if (path.length > MAX_RELATIVE_PATH_CHARS || containsUnsafePathCharacters(path)) return null
         val candidate = path.trim().replace('\\', '/')
-        if (candidate.isEmpty() || candidate.startsWith("/") || candidate.contains('\u0000')) return null
+        if (candidate.isEmpty() || candidate.startsWith("/") || candidate.contains('\u0000') ||
+            candidate.matches(Regex("^[A-Za-z]:.*"))
+        ) return null
         val segments = candidate.split('/')
         if (segments.size > MAX_PATH_SEGMENTS || segments.any {
                 it.isBlank() || it == "." || it == ".." || it.length > MAX_PATH_SEGMENT_CHARS

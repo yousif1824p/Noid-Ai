@@ -14,6 +14,8 @@ class ProjectFilePolicyTest {
         assertEquals(null, ProjectFilePolicy.normalizeRelativePath("../secret.txt"))
         assertEquals(null, ProjectFilePolicy.normalizeRelativePath("/storage/file.txt"))
         assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app/../../secret"))
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("C:\\Users\\private.txt"))
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("C:/Users/private.txt"))
     }
 
     @Test fun rejectsExcessivelyLongPathsAndSegments() {
