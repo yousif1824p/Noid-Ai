@@ -91,6 +91,35 @@ class WakeWordFeaturePipelineTest {
     }
 
     @Test
+    fun rejectsInvalidHannBeforeMutatingFilterState() {
+        val pipeline = pipelineWithStatefulFilter()
+        try {
+            pipeline.extract(FloatArray(16_000), FloatArray(399), mel())
+            throw AssertionError("Expected invalid Hann rejection")
+        } catch (_: IllegalArgumentException) {
+            // expected
+        }
+        val valid = FloatArray(16_000) { if (it == 0) 0.5f else 0f }
+        val expected = pipelineWithStatefulFilter().extract(valid, hann(), mel())
+        assertArrayEquals(expected, pipeline.extract(valid, hann(), mel()), 0f)
+    }
+
+    @Test
+    fun rejectsInvalidMelBeforeMutatingFilterState() {
+        val pipeline = pipelineWithStatefulFilter()
+        val invalidMel = mel().also { it[0] = -1f }
+        try {
+            pipeline.extract(FloatArray(16_000), hann(), invalidMel)
+            throw AssertionError("Expected invalid mel filterbank rejection")
+        } catch (_: IllegalArgumentException) {
+            // expected
+        }
+        val valid = FloatArray(16_000) { if (it == 0) 0.5f else 0f }
+        val expected = pipelineWithStatefulFilter().extract(valid, hann(), mel())
+        assertArrayEquals(expected, pipeline.extract(valid, hann(), mel()), 0f)
+    }
+
+    @Test
     fun validatedArtifactFactoryBindsAllFiveSectionsToThePipeline() {
         val (payload, artifact, expectedHann, expectedMel) = artifactFixture()
         val configured = WakeWordFeaturePipeline.fromValidatedArtifact(payload, artifact)

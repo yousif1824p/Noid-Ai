@@ -44,6 +44,17 @@ internal class WakeWordFeaturePipeline(
         require(samples.all(Float::isFinite)) {
             "Audio contains non-finite samples"
         }
+        // Validate every stateless DSP input before advancing any retained SOS
+        // state. A bad window/filterbank must not partially consume this chunk.
+        require(hannWindow.size == WakeWordStftMelCmn.WINDOW_SIZE &&
+            hannWindow.all(Float::isFinite)) {
+            "Invalid Hann window"
+        }
+        require(melFilterbank.size ==
+            WakeWordStftMelCmn.MEL_BINS * WakeWordStftMelCmn.FFT_BINS &&
+            melFilterbank.all { it.isFinite() && it >= 0f }) {
+            "Invalid dense mel filterbank"
+        }
         val highPassed = highPass.process(samples)
         val without50Hz = notch50Hz.process(highPassed)
         val filtered = notch60Hz.process(without50Hz)
