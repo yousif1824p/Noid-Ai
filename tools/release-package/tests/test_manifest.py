@@ -29,4 +29,13 @@ class ManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "symlink"): verify_manifest(self.root)
     def test_rejects_manifest_outside_root(self):
         with self.assertRaisesRegex(ManifestError, "inside release root"): create_manifest(self.root, str(Path(self.tmp.name) / "outside.json"))
+    def test_rejects_backslash_paths(self):
+        create_manifest(self.root)
+        p = self.root / "NOID-MANIFEST.json"
+        d = json.loads(p.read_text())
+        d["files"][0]["path"] = "folder\\\\file"
+        p.write_text(json.dumps(d))
+        with self.assertRaisesRegex(ManifestError, "invalid relative path"):
+            verify_manifest(self.root)
+
 if __name__ == "__main__": unittest.main()

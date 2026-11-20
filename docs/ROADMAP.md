@@ -106,7 +106,7 @@
 - [ ] Keep untrusted execution isolated on a properly sandboxed remote environment.
 
 ## Stage 6 — personal private release (no public distribution)
-- [x] Add a host-side SHA-256 manifest creator/verifier for prepared private release folders, rejecting symlinks, traversal, duplicate entries, and file-set/checksum mismatches; seven regression tests cover the utility. This does not build or sign an APK.
+- [x] Add a host-side SHA-256 manifest creator/verifier for prepared private release folders, rejecting symlinks, traversal, duplicate entries, and file-set/checksum mismatches; eight regression tests cover the utility. This does not build or sign an APK.
 - [ ] Verify target-device compatibility and performance.
 - [ ] Configure signing through secure secret storage without committing keys.
 - [ ] Build, test, and verify the signed APK only after development is complete.

@@ -7,7 +7,7 @@ SCHEMA_VERSION = 1
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 class ManifestError(ValueError): pass
 def safe_path(value):
-    if not isinstance(value, str) or not value or "\\\\" in value: raise ManifestError("invalid relative path")
+    if not isinstance(value, str) or not value or chr(92) in value: raise ManifestError("invalid relative path")
     p = PurePosixPath(value)
     if p.is_absolute() or any(x in ("", ".", "..") for x in p.parts) or p.as_posix() != value: raise ManifestError("unsafe or non-canonical relative path")
     return value
