@@ -86,6 +86,25 @@ class ScorecardTests(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertTrue(any("listener_code" in error for error in result["errors"]))
 
+    def test_listener_identifier_over_limit_is_rejected(self):
+        result = validate(self.write_rows([self.row("L" * 33)]))
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("listener_code" in error for error in result["errors"]))
+
+    def test_rating_row_limit_is_enforced(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        path = Path(temp.name) / "too-many-ratings.csv"
+        with path.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=COLUMNS)
+            writer.writeheader()
+            row = self.row("L1")
+            for _ in range(10_001):
+                writer.writerow(row)
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("exceeds 10000 rating rows" in error for error in result["errors"]))
+
     def test_oversized_csv_is_rejected_before_parsing(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
