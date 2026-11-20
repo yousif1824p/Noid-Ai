@@ -154,7 +154,7 @@ class ContinuousEvaluationTest(unittest.TestCase):
 
     def test_rejects_invalid_utf8_csv(self):
         self.fixture()
-        self.recordings.write_bytes(b"recording_id,speaker_id,split,label,condition,duration_seconds\\n\\xff")
+        self.recordings.write_bytes(b"recording_id,speaker_id,split,label,condition,duration_seconds\n\xff")
         with self.assertRaisesRegex(EvaluationError, "malformed CSV encoding or quoting"):
             evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
 
@@ -162,7 +162,7 @@ class ContinuousEvaluationTest(unittest.TestCase):
         self.fixture()
         self.recordings.write_text(
             "recording_id,speaker_id,split,label,condition,duration_seconds\\n"
-            + '"rec-1,spk-a,final_test,positive,quiet,20\\n',
+            + '"rec-1,spk-a,final_test,positive,quiet,20\n',
             encoding="utf-8",
         )
         with self.assertRaisesRegex(EvaluationError, "malformed CSV encoding or quoting"):
