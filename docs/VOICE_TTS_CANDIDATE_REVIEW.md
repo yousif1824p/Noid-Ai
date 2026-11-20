@@ -25,6 +25,10 @@ Keep all three as research candidates; do not choose a production engine yet. Ha
 
 The selected voice must be evaluated as a *designed synthetic identity*, not by cloning a person's recording. A neutral/ambiguous perceived gender cannot be guaranteed by a model card: create a controlled listening test with multiple listeners and reject any candidate consistently perceived as distinctly male or female. If needed, apply restrained electronic post-processing only after intelligibility testing.
 
+## Standardized audition material
+
+A fixed Modern Standard Arabic and Iraqi Arabic text corpus with a blind-listener scorecard is available at `docs/VOICE_TTS_AUDITION_CORPUS.md`. It is evaluation material only; no candidate has passed it.
+
 ## Required next evidence
 
 1. Pin exact model revision and obtain the full model, code, and codec licenses.
