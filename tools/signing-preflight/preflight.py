@@ -27,8 +27,10 @@ def validate_signing_environment(
 
     raw_path = Path(env["NOID_RELEASE_STORE_FILE"]).expanduser()
     try:
-        store_path = raw_path.resolve(strict=True)
         repo_path = repository_root.resolve(strict=True)
+        if raw_path.is_symlink():
+            return ["keystore must not be a symbolic link"]
+        store_path = raw_path.resolve(strict=True)
     except (OSError, RuntimeError):
         return ["keystore path or repository root cannot be resolved"]
 
@@ -40,12 +42,10 @@ def validate_signing_environment(
         return ["keystore must be stored outside the repository"]
 
     try:
-        metadata = store_path.lstat()
+        metadata = store_path.stat()
     except OSError:
         return ["keystore file is not accessible"]
 
-    if stat.S_ISLNK(metadata.st_mode):
-        return ["keystore must not be a symbolic link"]
     if not stat.S_ISREG(metadata.st_mode):
         return ["keystore path must identify a regular file"]
     if metadata.st_size == 0:
