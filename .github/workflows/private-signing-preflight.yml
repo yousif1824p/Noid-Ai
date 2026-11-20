@@ -1,0 +1,54 @@
+name: Private release signing preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: noid-private-signing-preflight
+  cancel-in-progress: false
+
+jobs:
+  signing-preflight:
+    name: Validate protected signing inputs (no APK build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: noid-private-release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate protected keystore inputs without exposing secrets
+        shell: bash
+        env:
+          NOID_RELEASE_KEYSTORE_BASE64: ${{ secrets.NOID_RELEASE_KEYSTORE_BASE64 }}
+          NOID_RELEASE_STORE_PASSWORD: ${{ secrets.NOID_RELEASE_STORE_PASSWORD }}
+          NOID_RELEASE_KEY_ALIAS: ${{ secrets.NOID_RELEASE_KEY_ALIAS }}
+          NOID_RELEASE_KEY_PASSWORD: ${{ secrets.NOID_RELEASE_KEY_PASSWORD }}
+        run: |
+          set +x
+          set -euo pipefail
+          umask 077
+          KEYSTORE_PATH="${RUNNER_TEMP}/noid-release-preflight.jks"
+          cleanup() {
+            rm -f -- "$KEYSTORE_PATH"
+          }
+          trap cleanup EXIT
+
+          if [ -z "${NOID_RELEASE_KEYSTORE_BASE64:-}" ]; then
+            echo "signing preflight: missing protected keystore secret" >&2
+            exit 1
+          fi
+
+          printf '%s' "$NOID_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+
+          NOID_RELEASE_STORE_FILE="$KEYSTORE_PATH" \
+            python tools/signing-preflight/preflight.py
