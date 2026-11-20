@@ -67,7 +67,7 @@ class SelectedProjectModelArgumentPolicyTest {
     fun normalizesAcceptedModelPathsBeforeBinding() {
         assertEquals(
             mapOf("selectionId" to "active", "path" to "src/Main.kt"),
-            bind(mapOf("path" to "src\\\\Main.kt"))
+            bind(mapOf("path" to "src\\Main.kt"))
         )
     }
 
