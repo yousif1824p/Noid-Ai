@@ -81,11 +81,20 @@ class ContinuousEvaluationTest(unittest.TestCase):
             with self.assertRaisesRegex(EvaluationError, "exceeds 1 data rows"):
                 evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
 
-    def test_rejects_excessive_matching_workload(self):
+    def test_matching_maximizes_one_to_one_hits_when_windows_overlap(self):
         self.fixture()
-        with patch("evaluate_continuous.MAX_MATCH_CANDIDATE_CHECKS", 1):
-            with self.assertRaisesRegex(EvaluationError, "matching workload exceeds 1 candidate checks"):
-                evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+        self.write(self.detections, ["recording_id", "timestamp_seconds", "confidence"], [
+            {"recording_id": "p1", "timestamp_seconds": "4.9", "confidence": "0.99"},
+            {"recording_id": "p1", "timestamp_seconds": "2.0", "confidence": "0.98"},
+        ])
+        self.write(self.truth, ["recording_id", "start_seconds", "end_seconds"], [
+            {"recording_id": "p1", "start_seconds": "3", "end_seconds": "4"},
+            {"recording_id": "p1", "start_seconds": "5.1", "end_seconds": "6"},
+        ])
+        result = evaluate(self.recordings, self.detections, self.truth, 0.8, 1.2)
+        self.assertEqual(result["true_positives"], 2)
+        self.assertEqual(result["missed_events"], 0)
+        self.assertEqual(result["unmatched_detections_on_positive_audio"], 0)
 
     def test_rejects_format_character_in_speaker_identifier(self):
         self.fixture()

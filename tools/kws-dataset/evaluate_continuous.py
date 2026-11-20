@@ -26,7 +26,6 @@ MAX_DETECTION_EVENTS = 100_000
 MAX_TRUTH_EVENTS = 100_000
 MAX_IDENTIFIER_LENGTH = 128
 MAX_METADATA_LENGTH = 128
-MAX_MATCH_CANDIDATE_CHECKS = 2_000_000
 
 
 class EvaluationError(ValueError):
@@ -172,30 +171,27 @@ def evaluate(recordings_csv: Path, detections_csv: Path, truth_csv: Path,
         group["duration_seconds"] += rec["duration"]
         found = sorted(detections[rid])
         expected = sorted(truths[rid])
-        matched: set[int] = set()
-        candidate_checks = 0
+        # Ground-truth intervals are sorted and non-overlapping, so their
+        # tolerance windows are ordered. Assigning the earliest eligible
+        # detection maximizes one-to-one matches without a quadratic scan.
+        detection_index = 0
+        matched_count = 0
         for start, end in expected:
             totals["positive_events"] += 1
             group["events"] += 1
-            candidates = []
-            for index, (timestamp, _) in enumerate(found):
-                candidate_checks += 1
-                if candidate_checks > MAX_MATCH_CANDIDATE_CHECKS:
-                    raise EvaluationError(
-                        "matching workload exceeds "
-                        f"{MAX_MATCH_CANDIDATE_CHECKS} candidate checks for recording {rid!r}"
-                    )
-                if index not in matched and start - tolerance <= timestamp <= end + tolerance:
-                    candidates.append((abs(timestamp - end), index))
-            if candidates:
-                _, index = min(candidates)
-                matched.add(index)
+            lower = start - tolerance
+            upper = end + tolerance
+            while detection_index < len(found) and found[detection_index][0] < lower:
+                detection_index += 1
+            if detection_index < len(found) and found[detection_index][0] <= upper:
+                matched_count += 1
+                detection_index += 1
                 totals["true_positives"] += 1
                 group["true_positives"] += 1
             else:
                 totals["missed_events"] += 1
                 group["missed_events"] += 1
-        unmatched = len(found) - len(matched)
+        unmatched = len(found) - matched_count
         group["detections"] += len(found)
         if rec["label"] == "negative":
             totals["negative_duration_seconds"] += rec["duration"]
