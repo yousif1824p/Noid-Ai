@@ -1,11 +1,13 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
-}
+val releaseSigningEnvironment = listOf(
+    "NOID_RELEASE_STORE_FILE",
+    "NOID_RELEASE_STORE_PASSWORD",
+    "NOID_RELEASE_KEY_ALIAS",
+    "NOID_RELEASE_KEY_PASSWORD"
+).associateWith { providers.environmentVariable(it).orNull }
+
+val releaseSigningConfigured = releaseSigningEnvironment.values.all { !it.isNullOrBlank() }
 
 android {
     namespace = "ai.noid.app"
@@ -19,6 +21,27 @@ android {
         versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = file(releaseSigningEnvironment.getValue("NOID_RELEASE_STORE_FILE")!!)
+                storePassword = releaseSigningEnvironment.getValue("NOID_RELEASE_STORE_PASSWORD")
+                keyAlias = releaseSigningEnvironment.getValue("NOID_RELEASE_KEY_ALIAS")
+                keyPassword = releaseSigningEnvironment.getValue("NOID_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            // Release signing is enabled only when all four values are injected
+            // by the local/CI secret manager. No signing material belongs in Git.
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 
     buildFeatures {
