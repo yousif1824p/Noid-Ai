@@ -75,7 +75,6 @@ class ScorecardTests(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertTrue(any("too few CSV fields" in error for error in result["errors"]))
 
-
     def test_candidate_identifier_over_limit_is_rejected(self):
         result = validate(self.write_rows([self.row("L1", candidate_id="x" * 81)]))
         self.assertFalse(result["valid"])
@@ -113,6 +112,16 @@ class ScorecardTests(unittest.TestCase):
         result = validate(path)
         self.assertFalse(result["valid"])
         self.assertTrue(any("exceeds" in error for error in result["errors"]))
+
+    def test_invalid_utf8_is_reported_without_traceback(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        path = Path(temp.name) / "invalid-utf8.csv"
+        path.write_bytes(b"candidate_id,dialect,listener_code,\xff")
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("Cannot read valid CSV" in error for error in result["errors"]))
+
 
 if __name__ == "__main__":
     unittest.main()
