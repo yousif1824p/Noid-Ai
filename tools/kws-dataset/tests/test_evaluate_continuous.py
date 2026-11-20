@@ -69,6 +69,30 @@ class ContinuousEvaluationTest(unittest.TestCase):
             with self.assertRaisesRegex(EvaluationError, "exceeds 3 data rows"):
                 evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
 
+    def test_rejects_csv_file_size_limit(self):
+        self.fixture()
+        with patch("evaluate_continuous.MAX_CSV_FILE_BYTES", 16):
+            with self.assertRaisesRegex(EvaluationError, "exceeds 16 bytes"):
+                evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
+    def test_rejects_truth_event_row_limit(self):
+        self.fixture()
+        with patch("evaluate_continuous.MAX_TRUTH_EVENTS", 1):
+            with self.assertRaisesRegex(EvaluationError, "exceeds 1 data rows"):
+                evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
+    def test_rejects_format_character_in_speaker_identifier(self):
+        self.fixture()
+        self.write(self.recordings,
+            ["recording_id", "speaker_id", "split", "label", "condition", "duration_seconds"], [
+                {"recording_id": "p1", "speaker_id": "spk\\u200b-a", "split": "final_test",
+                 "label": "positive", "condition": "quiet", "duration_seconds": "20"},
+                {"recording_id": "n1", "speaker_id": "spk-b", "split": "final_test",
+                 "label": "negative", "condition": "tv", "duration_seconds": "3600"},
+            ])
+        with self.assertRaisesRegex(EvaluationError, "invalid speaker_id"):
+            evaluate(self.recordings, self.detections, self.truth, 0.8, 0.5)
+
     def test_rejects_oversized_recording_identifier(self):
         self.fixture()
         self.write(self.recordings,
