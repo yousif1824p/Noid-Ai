@@ -29,8 +29,8 @@ class ToolExecutionPolicyTest {
     @Test
     fun rejectsControlCharactersAndOversizedAuditMetadata() {
         val invalidActions = listOf(
-            ToolAction("read\\nforged", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة"),
-            ToolAction("read", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة\\u202Eمزيفة"),
+            ToolAction("read\nforged", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة"),
+            ToolAction("read", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة\u202Eمزيفة"),
             ToolAction("x".repeat(129), ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة"),
             ToolAction("read", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "وصف".repeat(86)),
             ToolAction("read/forbidden", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة")
