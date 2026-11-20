@@ -85,7 +85,7 @@ class ContinuousEvaluationTest(unittest.TestCase):
         self.fixture()
         self.write(self.recordings,
             ["recording_id", "speaker_id", "split", "label", "condition", "duration_seconds"], [
-                {"recording_id": "p1", "speaker_id": "spk\\u200b-a", "split": "final_test",
+                {"recording_id": "p1", "speaker_id": "spk" + chr(0x200B) + "-a", "split": "final_test",
                  "label": "positive", "condition": "quiet", "duration_seconds": "20"},
                 {"recording_id": "n1", "speaker_id": "spk-b", "split": "final_test",
                  "label": "negative", "condition": "tv", "duration_seconds": "3600"},
