@@ -112,3 +112,18 @@ jobs:
           gradle-version: "8.14.4"
       - name: Run unit tests
         run: gradle testDebugUnitTest --stacktrace
+
+  arabic-tts-scorecard-tests:
+    name: Arabic TTS audition scorecard tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate anonymous Arabic TTS scorecard
+        working-directory: tools/arabic-tts-audition
+        run: python -m unittest discover -s tests -v
