@@ -198,14 +198,22 @@ internal class KeywordSpottingAudioSession(
                 closed = true
                 try {
                     source.stop()
+                } catch (_: Exception) {
+                    // Continue cleanup even if stopping the microphone fails.
                 } finally {
                     try {
                         source.close()
+                    } catch (_: Exception) {
+                        // Runtime disposal must still happen if source release fails.
                     } finally {
                         // Do not dispose the inference engine while processAudioFrame()
                         // is using it. Marking closed first prevents any new inference.
                         synchronized(runtimeLock) {
-                            runtime.close()
+                            try {
+                                runtime.close()
+                            } catch (_: Exception) {
+                                // Shutdown is best-effort; never strand earlier resources.
+                            }
                         }
                     }
                 }
