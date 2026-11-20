@@ -30,6 +30,10 @@ A static app shortcut named «الصوت» routes directly to the voice setup sc
 
 Before a microphone foreground service may be implemented or started, `VoiceForegroundServicePolicy` applies a fail-closed preflight: explicit user gesture, visible activity, granted microphone permission, platform-appropriate foreground-service permissions (API 28 and API 34 gates), an available notification channel, and a validated local keyword model are all required. The policy is pure and unit-tested; it does not itself request permissions, start a service, or capture audio. The actual service, notification/stop action, and runtime permission UI remain unimplemented until a real local KWS model is validated.
 
+## Speech output
+
+The app defines a provider-neutral `SpeechOutputEngine` contract and a bounded request policy for Arabic speech output. The request carries a language tag, speech rate, and synthetic-texture level; it intentionally has no male/female voice selector or human-voice cloning path. This is only an interface and input policy: no TTS provider, synthetic voice model, audio playback pipeline, generated voice asset, or target-device speech output is integrated or verified. Speech output is separate from microphone capture, dictation, and wake-word detection. Any future provider must document Arabic and Iraqi Arabic support, model/license provenance, offline/network behavior, cancellation, and device resource measurements before being enabled.
+
 ## Device automation
 
 Use supported Android APIs and, where appropriate, an explicitly enabled AccessibilityService. Detect restrictions dynamically. Never bypass platform protections. Require confirmation for sensitive or irreversible actions and keep an audit trail.
