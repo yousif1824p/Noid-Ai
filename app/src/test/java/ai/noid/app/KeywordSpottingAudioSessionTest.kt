@@ -363,4 +363,38 @@ class KeywordSpottingAudioSessionTest {
         assertEquals(1, runtime.closeCalls)
         assertEquals(0, runtime.frames)
     }
+    @Test
+    fun cleanupContinuesAndDoesNotThrowWhenEveryCloseStageFails() {
+        var stopAttempted = false
+        var sourceCloseAttempted = false
+        var runtimeCloseAttempted = false
+        val source = object : Pcm16AudioSource {
+            override fun start() = true
+            override fun read(target: ShortArray, offset: Int, length: Int) = -1
+            override fun stop() {
+                stopAttempted = true
+                throw IllegalStateException("stop failed")
+            }
+            override fun close() {
+                sourceCloseAttempted = true
+                throw IllegalStateException("source close failed")
+            }
+        }
+        val runtime = object : KeywordSpottingRuntime {
+            override val descriptor = this@KeywordSpottingAudioSessionTest.descriptor
+            override fun processAudioFrame(pcm16: ShortArray): KeywordSpottingEvent? = null
+            override fun close() {
+                runtimeCloseAttempted = true
+                throw IllegalStateException("runtime close failed")
+            }
+        }
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+
+        assertNull(session.run())
+
+        assertTrue(stopAttempted)
+        assertTrue(sourceCloseAttempted)
+        assertTrue(runtimeCloseAttempted)
+    }
+
 }
