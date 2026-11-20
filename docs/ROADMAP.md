@@ -108,6 +108,7 @@
 ## Stage 6 — personal private release (no public distribution)
 - [x] Add a host-side SHA-256 manifest creator/verifier for prepared private release folders, rejecting symlinks, traversal, duplicate entries, and file-set/checksum mismatches; eight regression tests cover the utility. This does not build or sign an APK.
 - [ ] Verify target-device compatibility and performance.
+- [x] Add a secret-safe signing preflight that requires the four release inputs, rejects missing/empty/in-repository/symlink keystore paths, and never prints secret values; seven CI regression tests pass. This does not configure a secret store or perform signing.
 - [ ] Configure signing through secure secret storage without committing keys.
 - [ ] Build, test, and verify the signed APK only after development is complete.
 - [ ] Prepare a private, locally retained personal release package with checksums and upgrade/restore instructions; no public publishing or public distribution.
