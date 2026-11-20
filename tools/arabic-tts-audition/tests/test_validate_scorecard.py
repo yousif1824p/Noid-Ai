@@ -61,8 +61,8 @@ class ScorecardTests(unittest.TestCase):
 
     def test_extra_csv_fields_are_rejected(self):
         path = self.write_rows([self.row("L1")])
-        with path.open("a", encoding="utf-8") as stream:
-            stream.write("unexpected-extra-field\n")
+        content = path.read_text(encoding="utf-8").rstrip("\n")
+        path.write_text(content + ",unexpected-extra-field\n", encoding="utf-8")
         result = validate(path)
         self.assertFalse(result["valid"])
         self.assertTrue(any("too many CSV fields" in error for error in result["errors"]))
