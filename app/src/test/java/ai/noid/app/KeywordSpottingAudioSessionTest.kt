@@ -388,7 +388,7 @@ class KeywordSpottingAudioSessionTest {
                 throw IllegalStateException("runtime close failed")
             }
         }
-        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+        val session = KeywordSpottingAudioSession(source, runtime, { true }, {})
 
         assertNull(session.run())
 
