@@ -51,4 +51,15 @@ class SpeechOutputRequestPolicyTest {
             )?.syntheticTexture
         )
     }
+
+    @Test fun allowsNormalArabicLineBreaksAndTabs() {
+        val request = SpeechOutputRequest("مرحبا\nبك\tيا NOID")
+        assertEquals(request.text, SpeechOutputRequestPolicy.accept(request)?.text)
+    }
+
+    @Test fun rejectsNullAndOtherControlCharacters() {
+        assertNull(SpeechOutputRequestPolicy.accept(SpeechOutputRequest("مرحبا\u0000بك")))
+        assertNull(SpeechOutputRequestPolicy.accept(SpeechOutputRequest("مرحبا\u0007بك")))
+        assertNull(SpeechOutputRequestPolicy.accept(SpeechOutputRequest("مرحبا\u007fبك")))
+    }
 }
