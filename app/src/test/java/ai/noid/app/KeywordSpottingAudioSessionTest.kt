@@ -25,6 +25,7 @@ class KeywordSpottingAudioSessionTest {
         var startCalls = 0
         var stopCalls = 0
         var closeCalls = 0
+        var lastReadTarget: ShortArray? = null
         private var chunkIndex = 0
         private var chunkOffset = 0
         private var zeroReads = 0
@@ -36,6 +37,7 @@ class KeywordSpottingAudioSessionTest {
         }
 
         override fun read(target: ShortArray, offset: Int, length: Int): Int {
+            lastReadTarget = target
             if (zeroReads < zeroReadsBeforeData) {
                 zeroReads++
                 return 0
@@ -62,7 +64,9 @@ class KeywordSpottingAudioSessionTest {
         var frames = 0
         var closed = false
         var closeCalls = 0
+        var lastProcessedFrame: ShortArray? = null
         override fun processAudioFrame(pcm16: ShortArray): KeywordSpottingEvent? {
+            lastProcessedFrame = pcm16
             frames++
             assertEquals(descriptor.frameLengthSamples, pcm16.size)
             return result
@@ -85,6 +89,18 @@ class KeywordSpottingAudioSessionTest {
         assertTrue(source.stopped)
         assertTrue(source.closed)
         assertTrue(runtime.closed)
+    }
+
+    @Test
+    fun clearsPcmBuffersAfterInferenceAndSessionShutdown() {
+        val source = FakeSource(listOf(frame()))
+        val runtime = FakeRuntime(descriptor)
+        val session = KeywordSpottingAudioSession(source, runtime, { runtime.frames >= 1 }, {})
+
+        assertNull(session.run())
+
+        assertTrue(source.lastReadTarget!!.all { it == 0.toShort() })
+        assertTrue(runtime.lastProcessedFrame!!.all { it == 0.toShort() })
     }
 
     @Test
