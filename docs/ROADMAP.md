@@ -82,6 +82,7 @@
 - [x] Add unit tests for the deterministic manifest analyzer (execution still pending).
 - [x] Add a user-facing APK picker and inspection results screen with bounded temporary file handling.
 - [x] Implement the first bounded source/configuration security scanning rules with secret-value redaction.
+- [x] Extend project preview redaction to unquoted API keys, refresh tokens, private/secret keys, and Authorization bearer values; add regression coverage for JSON/YAML delimiters.
 - [x] Bound project scan traversal to 500 files, 2,000 entries, depth 12, and 20 MiB total; enforce actual streamed file-size limits and preserve cancellation.
 - [x] Require a user-selected SAF content tree and revalidate its persisted read grant before read-only project scanning, with pure-policy unit tests.
 - [x] Add finding confidence labels and secret-value redaction.
@@ -97,6 +98,7 @@
 - [x] Specify a versioned, opt-in HTTP/SSE contract, including transport, authentication, bounded payloads, streaming events, cancellation, and local permission boundaries; the HTTPS/SSE client implementation and unit tests are recorded below; live-server interoperability remains pending.
 - [x] Add bounded JSON serialization for validated remote chat requests, emitting only request IDs and plain-text user/assistant messages; verify exact schema, Unicode round-tripping, unsupported-role rejection, and UTF-8/body limits with unit tests. This does not perform network I/O.
 - [x] Implement the opt-in remote HTTPS/SSE client with explicit configuration, Android Keystore-backed bearer-token storage, bounded request/response handling, cancellation, and strict event validation; covered by remote transport, settings, policy, and adapter unit tests. Live interoperability with a deployed compatible server remains pending.
+- [x] Support LF, CRLF, and CR-only SSE line endings in the bounded frame decoder, with regression tests; live-server interoperability remains pending.
 - [ ] Keep untrusted execution isolated on a properly sandboxed remote environment.
 
 ## Stage 6 — personal private release (no public distribution)
