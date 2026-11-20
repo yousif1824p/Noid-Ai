@@ -34,6 +34,8 @@ Before a microphone foreground service may be implemented or started, `VoiceFore
 
 The app defines a provider-neutral `SpeechOutputEngine` contract and a bounded request policy for Arabic speech output. The request carries a language tag, speech rate, and synthetic-texture level; it intentionally has no male/female voice selector or human-voice cloning path. This is only an interface and input policy: no TTS provider, synthetic voice model, audio playback pipeline, generated voice asset, or target-device speech output is integrated or verified. Speech output is separate from microphone capture, dictation, and wake-word detection. Any future provider must document Arabic and Iraqi Arabic support, model/license provenance, offline/network behavior, cancellation, and device resource measurements before being enabled.
 
+The initial Arabic TTS desk review is recorded in [VOICE_TTS_CANDIDATE_REVIEW.md](VOICE_TTS_CANDIDATE_REVIEW.md). Habibi-TTS IRQ, SILMA TTS, and Audar-TTS Flash remain research candidates only; none is approved or verified for Android, Iraqi Arabic, or the required neutral synthetic identity.
+
 ## Device automation
 
 Use supported Android APIs and, where appropriate, an explicitly enabled AccessibilityService. Detect restrictions dynamically. Never bypass platform protections. Require confirmation for sensitive or irreversible actions and keep an audit trail.
