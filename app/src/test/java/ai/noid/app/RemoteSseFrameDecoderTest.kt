@@ -21,6 +21,14 @@ class RemoteSseFrameDecoderTest {
         assertEquals(listOf(RemoteSseFrame("completed", "{}")), frames)
     }
 
+    @Test fun acceptsCarriageReturnOnlyLineEndings() {
+        val frames = RemoteSseFrameDecoder.decode("event: started\rdata: {}\r\revent: completed\rdata: {}\r\r")
+        assertEquals(
+            listOf(RemoteSseFrame("started", "{}"), RemoteSseFrame("completed", "{}")),
+            frames
+        )
+    }
+
     @Test fun emptyDocumentAndHeartbeatOnlyDocumentProduceNoFrames() {
         assertEquals(emptyList<RemoteSseFrame>(), RemoteSseFrameDecoder.decode(""))
         assertEquals(emptyList<RemoteSseFrame>(), RemoteSseFrameDecoder.decode(": ping\n\n"))
