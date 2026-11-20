@@ -11,15 +11,9 @@ from collections import defaultdict
 from pathlib import Path
 
 COLUMNS = (
-    "candidate_id",
-    "dialect",
-    "listener_code",
-    "arabic_authenticity",
-    "iraqi_fidelity",
-    "intelligibility",
-    "gender_ambiguity",
-    "synthetic_identity",
-    "stability",
+    "candidate_id", "dialect", "listener_code", "arabic_authenticity",
+    "iraqi_fidelity", "intelligibility", "gender_ambiguity",
+    "synthetic_identity", "stability",
 )
 DIALECTS = {"msa", "iraqi"}
 SCORES = COLUMNS[3:]
@@ -33,10 +27,14 @@ def validate(path: Path) -> dict:
     try:
         with path.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
-            if reader.fieldnames is None:
+            headers = reader.fieldnames
+            if headers is None:
                 return {"valid": False, "errors": ["CSV has no header"], "groups": []}
-            missing = [name for name in COLUMNS if name not in reader.fieldnames]
-            extra = [name for name in reader.fieldnames if name not in COLUMNS]
+            if len(headers) != len(set(headers)):
+                duplicates = sorted({name for name in headers if headers.count(name) > 1})
+                return {"valid": False, "errors": ["Duplicate columns: " + ", ".join(duplicates)], "groups": []}
+            missing = [name for name in COLUMNS if name not in headers]
+            extra = [name for name in headers if name not in COLUMNS]
             if missing:
                 errors.append("Missing columns: " + ", ".join(missing))
             if extra:
@@ -45,6 +43,12 @@ def validate(path: Path) -> dict:
                 return {"valid": False, "errors": errors, "groups": []}
 
             for line, row in enumerate(reader, start=2):
+                if None in row:
+                    errors.append(f"Line {line}: too many CSV fields")
+                    continue
+                if any(value is None for value in row.values()):
+                    errors.append(f"Line {line}: too few CSV fields")
+                    continue
                 candidate = (row.get("candidate_id") or "").strip()
                 dialect = (row.get("dialect") or "").strip().lower()
                 listener = (row.get("listener_code") or "").strip()
@@ -73,8 +77,8 @@ def validate(path: Path) -> dict:
                     values[field] = score
                 if len(values) == len(SCORES):
                     grouped[(candidate, dialect)].append(values)
-    except OSError as exc:
-        return {"valid": False, "errors": [f"Cannot read input: {exc}"], "groups": []}
+    except (OSError, csv.Error) as exc:
+        return {"valid": False, "errors": [f"Cannot read valid CSV: {exc}"], "groups": []}
 
     summaries = []
     for (candidate, dialect), ratings in sorted(grouped.items()):
@@ -91,8 +95,12 @@ def validate(path: Path) -> dict:
         })
     if not summaries:
         errors.append("No complete valid ratings found")
-    return {"valid": not errors, "errors": errors, "groups": summaries,
-            "notice": "Ratings are descriptive only; this tool never selects or approves a voice."}
+    return {
+        "valid": not errors,
+        "errors": errors,
+        "groups": summaries,
+        "notice": "Ratings are descriptive only; this tool never selects or approves a voice.",
+    }
 
 
 def main(argv: list[str] | None = None) -> int:

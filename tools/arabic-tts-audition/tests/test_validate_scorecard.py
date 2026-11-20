@@ -19,15 +19,9 @@ class ScorecardTests(unittest.TestCase):
 
     def row(self, listener="L1", dialect="msa", **overrides):
         row = {
-            "candidate_id": "candidate-a",
-            "dialect": dialect,
-            "listener_code": listener,
-            "arabic_authenticity": "4",
-            "iraqi_fidelity": "3",
-            "intelligibility": "5",
-            "gender_ambiguity": "4",
-            "synthetic_identity": "5",
-            "stability": "4",
+            "candidate_id": "candidate-a", "dialect": dialect, "listener_code": listener,
+            "arabic_authenticity": "4", "iraqi_fidelity": "3", "intelligibility": "5",
+            "gender_ambiguity": "4", "synthetic_identity": "5", "stability": "4",
         }
         row.update(overrides)
         return row
@@ -41,24 +35,45 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(result["groups"][0]["decision"], "MANUAL_REVIEW_REQUIRED")
 
     def test_duplicate_listener_is_rejected(self):
-        path = self.write_rows([self.row("L1"), self.row("L1")])
-        result = validate(path)
+        result = validate(self.write_rows([self.row("L1"), self.row("L1")]))
         self.assertFalse(result["valid"])
         self.assertTrue(any("duplicate" in error for error in result["errors"]))
 
     def test_invalid_score_is_rejected(self):
-        path = self.write_rows([self.row("L1", intelligibility="6")])
-        self.assertFalse(validate(path)["valid"])
+        self.assertFalse(validate(self.write_rows([self.row("L1", intelligibility="6")]))["valid"])
 
     def test_unknown_dialect_is_rejected(self):
-        path = self.write_rows([self.row("L1", dialect="gulf")])
-        self.assertFalse(validate(path)["valid"])
+        self.assertFalse(validate(self.write_rows([self.row("L1", dialect="gulf")]))["valid"])
 
     def test_small_panel_is_not_misrepresented_as_sufficient(self):
-        path = self.write_rows([self.row("L1")])
-        result = validate(path)
+        result = validate(self.write_rows([self.row("L1")]))
         self.assertTrue(result["valid"])
         self.assertFalse(result["groups"][0]["minimum_listener_count_met"])
+
+    def test_duplicate_csv_headers_are_rejected(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        path = Path(temp.name) / "duplicate.csv"
+        path.write_text(",".join(COLUMNS) + ",dialect\n", encoding="utf-8")
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertIn("Duplicate columns: dialect", result["errors"][0])
+
+    def test_extra_csv_fields_are_rejected(self):
+        path = self.write_rows([self.row("L1")])
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write("unexpected-extra-field\n")
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("too many CSV fields" in error for error in result["errors"]))
+
+    def test_missing_csv_fields_are_rejected(self):
+        path = self.write_rows([self.row("L1")])
+        lines = path.read_text(encoding="utf-8").splitlines()
+        path.write_text("\n".join(lines[:-1] + [",".join(lines[-1].split(",")[:-1])]) + "\n", encoding="utf-8")
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("too few CSV fields" in error for error in result["errors"]))
 
 
 if __name__ == "__main__":
