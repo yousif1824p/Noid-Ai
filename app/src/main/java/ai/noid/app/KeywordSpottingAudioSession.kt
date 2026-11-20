@@ -127,7 +127,11 @@ internal class KeywordSpottingAudioSession(
                 var filled = 0
                 var consecutiveEmptyReads = 0
                 while (filled < frame.size && !closed && !shouldStop()) {
-                    val count = source.read(frame, filled, frame.size - filled)
+                    val count = try {
+                        source.read(frame, filled, frame.size - filled)
+                    } catch (_: Exception) {
+                        return "تعذر قراءة إطار الصوت."
+                    }
                     if (count < 0) return "تعذر قراءة إطار الصوت."
                     if (count == 0) {
                         consecutiveEmptyReads++
@@ -157,8 +161,12 @@ internal class KeywordSpottingAudioSession(
                         if (closed) {
                             false
                         } else {
-                            onEvent(event)
-                            true
+                            try {
+                                onEvent(event)
+                                true
+                            } catch (_: Exception) {
+                                return "تعذر تسليم حدث اكتشاف الكلمة."
+                            }
                         }
                     }
                     if (!delivered) break
