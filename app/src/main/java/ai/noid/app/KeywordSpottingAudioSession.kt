@@ -105,6 +105,7 @@ internal class KeywordSpottingAudioSession(
     private val onEvent: (KeywordSpottingEvent) -> Unit
 ) : AutoCloseable {
     private val resourceLock = Any()
+    private val runtimeLock = Any()
     @Volatile private var closed = false
 
     fun run(): String? {
@@ -140,13 +141,19 @@ internal class KeywordSpottingAudioSession(
                 val frameError = KeywordSpottingBoundaryPolicy.validateAudioFrame(frame, descriptor)
                 if (frameError != null) return frameError
                 val event = try {
-                    runtime.processAudioFrame(frame.copyOf())
+                    synchronized(runtimeLock) {
+                        if (closed) null else runtime.processAudioFrame(frame.copyOf())
+                    }
                 } catch (_: Exception) {
                     return "تعذر تشغيل نموذج اكتشاف الكلمة."
                 }
+                // A UI-thread close may have waited for inference to finish. Never
+                // publish a result after that close request has been accepted.
+                if (closed) break
                 if (event != null) {
                     val eventError = KeywordSpottingBoundaryPolicy.validateEvent(event, descriptor)
                     if (eventError != null) return eventError
+                    if (closed) break
                     onEvent(event)
                     if (event is KeywordSpottingEvent.Unavailable) return event.reason
                 }
@@ -167,7 +174,11 @@ internal class KeywordSpottingAudioSession(
                 try {
                     source.close()
                 } finally {
-                    runtime.close()
+                    // Do not dispose the inference engine while processAudioFrame()
+                    // is using it. Marking closed first prevents any new inference.
+                    synchronized(runtimeLock) {
+                        runtime.close()
+                    }
                 }
             }
         }

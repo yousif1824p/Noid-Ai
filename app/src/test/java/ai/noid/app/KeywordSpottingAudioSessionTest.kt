@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class KeywordSpottingAudioSessionTest {
     private val descriptor = KeywordModelDescriptor(
@@ -142,6 +144,55 @@ class KeywordSpottingAudioSessionTest {
         assertEquals(1, runtime.frames)
         assertTrue(source.closed)
         assertTrue(runtime.closed)
+    }
+
+
+    @Test
+    fun closeWaitsForInFlightInferenceAndSuppressesItsEvent() {
+        val inferenceStarted = CountDownLatch(1)
+        val allowInferenceToFinish = CountDownLatch(1)
+        val closeFinished = CountDownLatch(1)
+        val source = FakeSource(listOf(frame()))
+        val event = KeywordSpottingEvent.Detected("يا NOID", 0.95f)
+        val runtime = object : KeywordSpottingRuntime {
+            override val descriptor = this@KeywordSpottingAudioSessionTest.descriptor
+            @Volatile var closed = false
+            override fun processAudioFrame(pcm16: ShortArray): KeywordSpottingEvent? {
+                inferenceStarted.countDown()
+                check(allowInferenceToFinish.await(2, TimeUnit.SECONDS))
+                check(!closed) { "Runtime was closed during inference" }
+                return event
+            }
+            override fun close() {
+                closed = true
+            }
+        }
+        val received = mutableListOf<KeywordSpottingEvent>()
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, received::add)
+        val worker = Thread { session.run() }
+        worker.start()
+        assertTrue(inferenceStarted.await(2, TimeUnit.SECONDS))
+
+        val closer = Thread {
+            try {
+                session.close()
+            } finally {
+                closeFinished.countDown()
+            }
+        }
+        closer.start()
+
+        // close() must wait for the active inference instead of disposing its runtime.
+        assertFalse(closeFinished.await(100, TimeUnit.MILLISECONDS))
+        allowInferenceToFinish.countDown()
+        worker.join(2_000)
+        closer.join(2_000)
+
+        assertFalse(worker.isAlive)
+        assertFalse(closer.isAlive)
+        assertTrue(closeFinished.count == 0L)
+        assertTrue(runtime.closed)
+        assertTrue(received.isEmpty())
     }
 
     @Test
