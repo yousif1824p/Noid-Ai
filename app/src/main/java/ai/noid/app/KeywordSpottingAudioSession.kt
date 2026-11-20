@@ -88,6 +88,8 @@ internal class AndroidPcm16AudioSource(
     }
 }
 
+private const val MAX_CONSECUTIVE_EMPTY_READS = 8
+
 /**
  * Converts arbitrary AudioRecord read sizes into exact model frames and validates
  * every frame/event at the model boundary. Call from a worker thread.
@@ -109,10 +111,18 @@ internal class KeywordSpottingAudioSession(
             val frame = ShortArray(descriptor.frameLengthSamples)
             while (!closed && !shouldStop()) {
                 var filled = 0
+                var consecutiveEmptyReads = 0
                 while (filled < frame.size && !closed && !shouldStop()) {
                     val count = source.read(frame, filled, frame.size - filled)
                     if (count < 0) return "تعذر قراءة إطار الصوت."
-                    if (count == 0) continue
+                    if (count == 0) {
+                        consecutiveEmptyReads++
+                        if (consecutiveEmptyReads >= MAX_CONSECUTIVE_EMPTY_READS) {
+                            return "مصدر الصوت لا يعيد بيانات؛ أُوقفت الجلسة لحماية المعالج."
+                        }
+                        continue
+                    }
+                    consecutiveEmptyReads = 0
                     if (count > frame.size - filled) return "مصدر الصوت أعاد حجماً غير صالح."
                     filled += count
                 }

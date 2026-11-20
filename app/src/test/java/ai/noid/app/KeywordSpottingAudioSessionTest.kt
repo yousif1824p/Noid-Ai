@@ -13,16 +13,24 @@ class KeywordSpottingAudioSessionTest {
         localOnly = true, modelVersion = "1"
     )
 
-    private class FakeSource(private val chunks: List<ShortArray>) : Pcm16AudioSource {
+    private class FakeSource(
+        private val chunks: List<ShortArray>,
+        private val zeroReadsBeforeData: Int = 0
+    ) : Pcm16AudioSource {
         var started = false
         var stopped = false
         var closed = false
         private var chunkIndex = 0
         private var chunkOffset = 0
+        private var zeroReads = 0
 
         override fun start(): Boolean { started = true; return true }
 
         override fun read(target: ShortArray, offset: Int, length: Int): Int {
+            if (zeroReads < zeroReadsBeforeData) {
+                zeroReads++
+                return 0
+            }
             val chunk = chunks.getOrNull(chunkIndex) ?: return -1
             val count = minOf(length, chunk.size - chunkOffset)
             chunk.copyInto(target, offset, chunkOffset, chunkOffset + count)
@@ -99,6 +107,21 @@ class KeywordSpottingAudioSessionTest {
         val runtime = FakeRuntime(descriptor, KeywordSpottingEvent.Detected("wrong", 0.5f))
         val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
         assertEquals("عبارة التنبيه المكتشفة لا تطابق العبارة المضبوطة.", session.run())
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
+    }
+
+
+    @Test
+    fun stopsAfterRepeatedEmptyReadsInsteadOfSpinningForever() {
+        val source = FakeSource(listOf(frame()), zeroReadsBeforeData = 8)
+        val runtime = FakeRuntime(descriptor)
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+        assertEquals(
+            "مصدر الصوت لا يعيد بيانات؛ أُوقفت الجلسة لحماية المعالج.",
+            session.run()
+        )
+        assertEquals(0, runtime.frames)
         assertTrue(source.closed)
         assertTrue(runtime.closed)
     }
