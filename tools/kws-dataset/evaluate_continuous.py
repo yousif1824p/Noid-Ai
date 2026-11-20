@@ -35,28 +35,31 @@ class EvaluationError(ValueError):
 def _read_csv(path: Path, required: set[str], max_rows: int) -> list[dict[str, str]]:
     if path.stat().st_size > MAX_CSV_FILE_BYTES:
         raise EvaluationError(f"{path.name}: CSV exceeds {MAX_CSV_FILE_BYTES} bytes")
-    with path.open("r", encoding="utf-8-sig", newline="") as stream:
-        reader = csv.DictReader(stream)
-        headers = reader.fieldnames or []
-        if len(headers) != len(set(headers)):
-            raise EvaluationError(f"{path.name}: duplicate CSV columns")
-        if set(headers) != required:
-            missing = sorted(required - set(headers))
-            extra = sorted(set(headers) - required)
-            details = []
-            if missing:
-                details.append("missing: " + ", ".join(missing))
-            if extra:
-                details.append("unexpected: " + ", ".join(extra))
-            raise EvaluationError(f"{path.name}: invalid columns ({'; '.join(details)})")
-        rows = []
-        for row_number, row in enumerate(reader, start=2):
-            if row_number - 1 > max_rows:
-                raise EvaluationError(f"{path.name}: exceeds {max_rows} data rows")
-            if None in row or any(value is None for value in row.values()):
-                raise EvaluationError(f"{path.name}: malformed field count on row {row_number}")
-            rows.append(row)
-        return rows
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as stream:
+            reader = csv.DictReader(stream, strict=True)
+            headers = reader.fieldnames or []
+            if len(headers) != len(set(headers)):
+                raise EvaluationError(f"{path.name}: duplicate CSV columns")
+            if set(headers) != required:
+                missing = sorted(required - set(headers))
+                extra = sorted(set(headers) - required)
+                details = []
+                if missing:
+                    details.append("missing: " + ", ".join(missing))
+                if extra:
+                    details.append("unexpected: " + ", ".join(extra))
+                raise EvaluationError(f"{path.name}: invalid columns ({'; '.join(details)})")
+            rows = []
+            for row_number, row in enumerate(reader, start=2):
+                if row_number - 1 > max_rows:
+                    raise EvaluationError(f"{path.name}: exceeds {max_rows} data rows")
+                if None in row or any(value is None for value in row.values()):
+                    raise EvaluationError(f"{path.name}: malformed field count on row {row_number}")
+                rows.append(row)
+            return rows
+    except (csv.Error, UnicodeError) as exc:
+        raise EvaluationError(f"{path.name}: malformed CSV encoding or quoting: {exc}") from exc
 
 
 def _safe_token(value: str, field: str, maximum: int = MAX_IDENTIFIER_LENGTH) -> str:
