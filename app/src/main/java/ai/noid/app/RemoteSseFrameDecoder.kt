@@ -3,9 +3,9 @@ package ai.noid.app
 /**
  * Strict bounded decoder for complete Server-Sent Events documents.
  *
- * This is only the framing layer: callers must still decode and validate the
- * event JSON schema, request ID, protocol version, and sequence numbers.
- * It performs no networking and never interprets remote content as commands.
+ * Supports the SSE line endings (LF, CRLF, and CR). This is only the framing
+ * layer: callers must still validate event JSON, request IDs, versions, and
+ * sequence numbers. Remote content is never interpreted as a command.
  */
 data class RemoteSseFrame(val event: String, val data: String)
 
@@ -22,8 +22,6 @@ object RemoteSseFrameDecoder {
         var eventName: String? = null
         val dataLines = mutableListOf<String>()
         var eventChars = 0
-        var lineStart = 0
-        var sawFinalLineBreak = false
 
         fun dispatch() {
             if (eventName == null && dataLines.isEmpty()) {
@@ -40,17 +38,12 @@ object RemoteSseFrameDecoder {
             eventChars = 0
         }
 
-        for (index in document.indices) {
-            if (document[index] != '\n') continue
-            var line = document.substring(lineStart, index)
-            if (line.endsWith('\r')) line = line.dropLast(1)
-            sawFinalLineBreak = index == document.lastIndex
-            lineStart = index + 1
+        fun consumeLine(line: String) {
             if (line.isEmpty()) {
                 dispatch()
-                continue
+                return
             }
-            if (line.startsWith(':')) continue
+            if (line.startsWith(':')) return
             eventChars += line.length
             require(eventChars <= MAX_EVENT_CHARS) { "SSE event exceeds the size limit." }
             val separator = line.indexOf(':')
@@ -66,7 +59,28 @@ object RemoteSseFrameDecoder {
                 else -> throw IllegalArgumentException("SSE field is not supported.")
             }
         }
-        require(sawFinalLineBreak && lineStart == document.length) {
+
+        var lineStart = 0
+        var index = 0
+        var endedWithLineBreak = false
+        while (index < document.length) {
+            val char = document[index]
+            if (char != '\n' && char != '\r') {
+                index++
+                endedWithLineBreak = false
+                continue
+            }
+            consumeLine(document.substring(lineStart, index))
+            if (char == '\r' && index + 1 < document.length && document[index + 1] == '\n') {
+                index += 2
+            } else {
+                index++
+            }
+            lineStart = index
+            endedWithLineBreak = true
+        }
+
+        require(endedWithLineBreak && lineStart == document.length) {
             "SSE document ended with an incomplete line or frame."
         }
         require(eventName == null && dataLines.isEmpty()) {
