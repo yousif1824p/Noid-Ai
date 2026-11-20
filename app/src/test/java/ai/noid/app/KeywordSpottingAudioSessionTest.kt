@@ -233,6 +233,40 @@ class KeywordSpottingAudioSessionTest {
         assertTrue(runtime.closed)
     }
 
+
+    @Test
+    fun closeStopsBlockingReadAndReleasesSession() {
+        val readStarted = CountDownLatch(1)
+        val stopSignal = CountDownLatch(1)
+        val source = object : Pcm16AudioSource {
+            @Volatile var closed = false
+            override fun start() = true
+            override fun read(target: ShortArray, offset: Int, length: Int): Int {
+                readStarted.countDown()
+                check(stopSignal.await(2, TimeUnit.SECONDS))
+                return 0
+            }
+            override fun stop() { stopSignal.countDown() }
+            override fun close() { closed = true }
+        }
+        val runtime = FakeRuntime(descriptor)
+        val session = KeywordSpottingAudioSession(source, runtime, { false }, {})
+        var result: String? = "not-finished"
+        val worker = Thread { result = session.run() }
+        worker.start()
+
+        assertTrue(readStarted.await(2, TimeUnit.SECONDS))
+        session.close()
+        worker.join(2_000)
+
+        assertFalse(worker.isAlive)
+        assertNull(result)
+        assertTrue(source.closed)
+        assertTrue(runtime.closed)
+        assertEquals(0, runtime.frames)
+    }
+
+
     @Test
     fun closeIsIdempotentAndPreventsLaterMicrophoneStart() {
         val source = FakeSource(listOf(frame()))
