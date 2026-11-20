@@ -10,8 +10,8 @@ data class ToolAuthorization(val decision: ToolDecision, val reason: String)
 
 class ToolExecutionPolicy {
     fun evaluate(action: ToolAction, grantedCapabilities: Set<ToolCapability>, userConfirmed: Boolean): ToolAuthorization {
-        if (action.actionId.isBlank() || action.description.isBlank()) {
-            return ToolAuthorization(ToolDecision.DENY, "بيانات الإجراء غير مكتملة.")
+        if (!hasSafeMetadata(action)) {
+            return ToolAuthorization(ToolDecision.DENY, "بيانات الإجراء غير مكتملة أو غير صالحة.")
         }
         if (action.capability !in grantedCapabilities) {
             return ToolAuthorization(ToolDecision.DENY, "الصلاحية المطلوبة غير ممنوحة.")
@@ -21,5 +21,17 @@ class ToolExecutionPolicy {
             return ToolAuthorization(ToolDecision.REQUIRE_USER_CONFIRMATION, "يتطلب هذا الإجراء موافقة صريحة من المستخدم.")
         }
         return ToolAuthorization(ToolDecision.ALLOW, "الصلاحية متاحة وشروط الموافقة مستوفاة.")
+    }
+
+    private fun hasSafeMetadata(action: ToolAction): Boolean {
+        if (action.actionId.isBlank() || action.actionId.length > MAX_ACTION_ID_CHARS) return false
+        if (action.description.isBlank() || action.description.length > MAX_DESCRIPTION_CHARS) return false
+        if (action.actionId.any { it.isISOControl() } || action.description.any { it.isISOControl() }) return false
+        return action.actionId.all { it.isLetterOrDigit() || it in "._:-" }
+    }
+
+    private companion object {
+        const val MAX_ACTION_ID_CHARS = 128
+        const val MAX_DESCRIPTION_CHARS = 256
     }
 }
