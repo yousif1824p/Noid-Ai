@@ -56,7 +56,7 @@ class SelectedProjectModelArgumentPolicyTest {
             "src/../../outside.txt",
             "/storage/emulated/0/secret.txt",
             "C:\\Users\\private.txt",
-            "src/\\u202Ehidden.kt",
+            "src/\u202Ehidden.kt",
             "a".repeat(ProjectFilePolicy.MAX_RELATIVE_PATH_CHARS + 1)
         ).forEach { path ->
             assertNull("Unsafe path must be rejected: $path", bind(mapOf("path" to path)))
