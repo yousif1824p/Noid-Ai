@@ -39,6 +39,7 @@
 - [x] Add authorization matrix tests proving sensitive/destructive actions require confirmation and capability grants cannot be substituted.
 - [x] Reject malformed tool audit metadata at the authorization boundary: bound action IDs/descriptions and reject control characters or unsafe action-ID syntax; add regression tests.
 - [x] Add exact-boundary and overflow regression tests for tool request argument count, key length, value length, and blank keys; test mixed bounded arguments.
+- [x] Reject ISO control and Unicode format characters in tool argument keys while preserving multiline file-content values; add regression tests.
 - [x] Wire all executable tool adapters through authorization and audit logging; verified seven model-callable adapters through `ToolRegistry` and all twelve user-started workflow actions through `executeUserAction`, with registry-wide authorization/audit regression tests.
 
   Current inventory and the remaining central-registry gap are tracked in `docs/TOOL_EXECUTION_INVENTORY.md`; do not mark this item complete until UI-triggered and model-triggered execution paths have one tested, consistent authorization/audit boundary.
