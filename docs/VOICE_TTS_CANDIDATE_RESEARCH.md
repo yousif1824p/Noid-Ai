@@ -1,6 +1,6 @@
 # Arabic TTS candidate research — NOID voice
 
-Last reviewed: 2026-11-20
+Last reviewed: 2026-11-20 (expanded with Audar-TTS-V1-Flash public model-card review)
 
 ## Decision
 
@@ -17,14 +17,25 @@ Neither model by itself supplies NOID's requested original, gender-ambiguous syn
 | Habibi-TTS-IRQ (`ameer4wisam/Habibi-TTS-IRQ`) | Iraqi Arabic checkpoint only | Hugging Face model page states Apache-2.0 | Primary Iraqi dialect candidate | Evaluate first; not approved |
 | Habibi-TTS MSA checkpoint | Modern Standard Arabic | Upstream project lists MSA among Apache-2.0 dialect checkpoints | MSA comparison candidate | Evaluate separately |
 | SILMA TTS v1 (`silma-ai/silma-tts`) | MSA Arabic and English; 150M parameters | Model card states Apache-2.0 weights and MIT code | MSA pronunciation baseline | Evaluate; not Iraqi-native evidence |
+| Audar-TTS-V1-Flash (`audarai/Audar-TTS-V1-Flash`) | Arabic-first, MSA plus multiple dialect claims; about 553M parameters; GGUF variants | AudarAI Open License v1.0; codec is a separate component with its own provenance/license review | Higher-resource expressive Arabic comparison | Research only; not approved; Iraqi quality and neutral identity unproven |
 
 Sources checked:
 - Habibi Iraqi-only model card: https://huggingface.co/ameer4wisam/Habibi-TTS-IRQ
 - Upstream Habibi project and paper: https://github.com/SWivid/Habibi-TTS and https://arxiv.org/abs/2601.13802
 - SILMA model card: https://huggingface.co/silma-ai/silma-tts
 - SILMA official repository: https://github.com/SILMA-AI/silma-tts
+- Audar Flash model card and GGUF details: https://huggingface.co/audarai/Audar-TTS-V1-Flash
+- Audar license summary/model-card copy: https://huggingface.co/audarai/Audar-TTS-V1-Flash/blob/main/README.md
 
 License scope must be checked against the exact checkpoint and its upstream files at the time of download. Do not infer the license of one Habibi dialect checkpoint from another; the unified/SAU/UAE variants have different terms from IRQ/MSA.
+
+## Audar Flash: additional evaluation constraints
+
+The model card describes an approximately 553M-parameter Arabic-first model with GGUF Q4_K_M, Q5_K_M, and Q8_0 variants (roughly 0.46–0.60 GB for the listed weights). This is materially smaller than an unquantized multi-billion-parameter model, but the weight-file size is not peak runtime RAM: tokenizer, KV/cache state, codec decoder, audio buffers, and inference runtime add overhead. Do not infer phone suitability from GGUF availability or the model card's CPU/edge claims.
+
+The model card names the AudarAI Open License v1.0 and describes commercial use/modification/redistribution subject to notice and attribution conditions. The audar-codec is a separate dependency derived from NeuCodec; audit its exact revision, license, and artifacts independently before packaging. Do not assume the model-weight license automatically covers the codec or every third-party component. The model also advertises voice cloning from a short reference clip, which is not a reason to use an identifiable person's voice and does not establish an intrinsically gender-ambiguous identity.
+
+For NOID, Audar Flash is a useful additional Arabic-first comparison candidate, not the default or an approved mobile runtime. Iraqi dialect fidelity, gender ambiguity, full-pipeline license compatibility, ARM64 runtime, peak RAM, thermal behavior, and offline inference all remain unverified.
 
 ## Important implementation constraint
 
