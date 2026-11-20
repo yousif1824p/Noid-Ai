@@ -45,6 +45,13 @@ python tools/kws-dataset/evaluate_continuous.py /private/path/recordings.csv /pr
 
 The input recordings CSV must contain exactly one split. Use `--split calibration` to assess calibration data or `--split final_test` for the sealed final evaluation; mixed-split inputs are rejected. The report includes phrase recall, missed phrases, false activations per hour of negative audio, unmatched triggers on positive recordings, and a speaker/condition breakdown. Detections below the threshold are ignored. A trigger is matched at most once to a phrase interval when its timestamp falls within that interval plus/minus the tolerance.
 
+Input safety limits:
+- Each CSV file is limited to 8 MiB.
+- Recordings are limited to 10,000 rows; detection and ground-truth event files are limited to 100,000 rows each.
+- Identifiers are limited to 128 characters; speaker IDs and condition labels are limited to 128 characters.
+- CSV headers must match the required columns exactly, without duplicates; malformed row widths and control/format characters in identifiers are rejected.
+- These are defensive parser limits, not recommended dataset sizes or evidence of detector performance.
+
 Limitations:
 - The evaluator trusts supplied durations, ground-truth intervals, detector timestamps, confidence values, and split labels. Validate them independently.
 - It does not inspect waveforms, calculate latency from acoustic phrase end, prove model identity, or enforce that final-test data remained sealed.
