@@ -1,7 +1,7 @@
 package ai.noid.app
 
-import androidx.compose.material3.MaterialTheme
 import android.os.Looper
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -45,6 +45,13 @@ class SelfDevelopmentReviewScreenTest {
             MaterialTheme { SelfDevelopmentReviewScreen(viewModel) }
         }
 
+        // The screen loads recent proposals asynchronously in init. Wait for the
+        // repository result before asserting card semantics; otherwise Robolectric
+        // can observe the initial empty StateFlow and time out on the title.
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            shadowOf(Looper.getMainLooper()).idle()
+            viewModel.recent.value.singleOrNull()?.title == "تحسين المعالجة"
+        }
         composeRule.onNodeWithText("مراجعة تطوير NOID").fetchSemanticsNode()
         composeRule.onNodeWithText("تحسين المعالجة").fetchSemanticsNode()
         composeRule.onNodeWithText("المسار: src/Worker.kt").fetchSemanticsNode()
@@ -54,7 +61,6 @@ class SelfDevelopmentReviewScreenTest {
         ).fetchSemanticsNode()
         composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            // Drain ViewModel work scheduled on the main looper under Robolectric.
             shadowOf(Looper.getMainLooper()).idle()
             dao.rows.value.singleOrNull()?.status == SelfDevelopmentProposal.STATUS_APPROVED
         }
