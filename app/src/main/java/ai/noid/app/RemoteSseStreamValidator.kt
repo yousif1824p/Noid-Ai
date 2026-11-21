@@ -88,6 +88,7 @@ class RemoteSseStreamValidator(
             "unavailable",
             "timeout",
             "cancelled",
+            "output_limit",
             "internal_error"
         )
     }

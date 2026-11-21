@@ -50,6 +50,30 @@ class OllamaTextEngine:
         )
         output_chars = 0
         saw_done = False
+        pending = bytearray()
+
+        def decode_line(raw_line: bytes) -> tuple[str, bool]:
+            if raw_line.endswith(b"\r"):
+                raw_line = raw_line[:-1]
+            if not raw_line:
+                return "", False
+            if len(raw_line) > self.MAX_LINE_BYTES:
+                raise EngineUnavailable
+            try:
+                event = json.loads(raw_line)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                raise EngineUnavailable from None
+            if not isinstance(event, dict) or not isinstance(event.get("done"), bool):
+                raise EngineUnavailable
+            message = event.get("message")
+            if message is None:
+                fragment = ""
+            elif isinstance(message, dict) and isinstance(message.get("content", ""), str):
+                fragment = message.get("content", "")
+            else:
+                raise EngineUnavailable
+            return fragment, event["done"]
+
         try:
             async with client.stream(
                 "POST",
@@ -59,32 +83,35 @@ class OllamaTextEngine:
             ) as response:
                 if response.status_code != 200:
                     raise EngineUnavailable
-                async for line in response.aiter_lines():
-                    if not line:
-                        continue
-                    if len(line.encode("utf-8")) > self.MAX_LINE_BYTES:
-                        raise EngineUnavailable
-                    try:
-                        event = json.loads(line)
-                    except (UnicodeDecodeError, json.JSONDecodeError):
-                        raise EngineUnavailable from None
-                    if not isinstance(event, dict) or not isinstance(event.get("done"), bool):
-                        raise EngineUnavailable
-                    message = event.get("message")
-                    if message is not None:
-                        if not isinstance(message, dict):
-                            raise EngineUnavailable
-                        fragment = message.get("content", "")
-                        if not isinstance(fragment, str):
-                            raise EngineUnavailable
+                async for chunk in response.aiter_bytes():
+                    pending.extend(chunk)
+                    while True:
+                        newline = pending.find(b"\n")
+                        if newline < 0:
+                            if len(pending) > self.MAX_LINE_BYTES:
+                                raise EngineUnavailable
+                            break
+                        raw_line = bytes(pending[:newline])
+                        del pending[:newline + 1]
+                        fragment, done = decode_line(raw_line)
                         output_chars += len(fragment)
                         if output_chars > MAX_OUTPUT_CHARS:
                             raise EngineUnavailable
                         if fragment:
                             yield fragment
-                    if event["done"]:
-                        saw_done = True
+                        if done:
+                            saw_done = True
+                            break
+                    if saw_done:
                         break
+                if not saw_done and pending:
+                    fragment, done = decode_line(bytes(pending))
+                    output_chars += len(fragment)
+                    if output_chars > MAX_OUTPUT_CHARS:
+                        raise EngineUnavailable
+                    if fragment:
+                        yield fragment
+                    saw_done = done
             if not saw_done:
                 raise EngineUnavailable
         except (httpx.HTTPError, OSError, TimeoutError):

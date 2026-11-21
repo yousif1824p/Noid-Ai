@@ -94,6 +94,7 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
             backend = OllamaTextEngine(ollama_url, ollama_model)
         else:
             backend = UnconfiguredEngine()
+    backend_configured = not isinstance(backend, UnconfiguredEngine)
     expected_token = token if token is not None else os.environ.get("NOID_API_TOKEN", "")
     active: dict[str, ActiveRequest] = {}
     active_lock = asyncio.Lock()
@@ -112,7 +113,7 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
         return JSONResponse({
             "protocol": "noid-http-sse",
             "version": PROTOCOL_VERSION,
-            "status": "ready",
+            "status": "ready" if backend_configured else "unavailable",
         }, headers={"Cache-Control": "no-store"})
 
     @app.post("/v1/chat")
@@ -225,27 +226,27 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
                         "protocol_version": PROTOCOL_VERSION,
                         "sequence": sequence,
                     })
-                except EngineUnavailable:
-                    sequence += 1
-                    terminal = True
-                    yield _sse("error", {
-                        "request_id": request_id,
-                        "protocol_version": PROTOCOL_VERSION,
-                        "sequence": sequence,
-                        "error_code": "unavailable",
-                    })
-                except asyncio.CancelledError:
-                    state.cancel.set()
-                    raise
-                except Exception:
-                    sequence += 1
-                    terminal = True
-                    yield _sse("error", {
-                        "request_id": request_id,
-                        "protocol_version": PROTOCOL_VERSION,
-                        "sequence": sequence,
-                        "error_code": "internal_error",
-                    })
+            except EngineUnavailable:
+                sequence += 1
+                terminal = True
+                yield _sse("error", {
+                    "request_id": request_id,
+                    "protocol_version": PROTOCOL_VERSION,
+                    "sequence": sequence,
+                    "error_code": "unavailable",
+                })
+            except asyncio.CancelledError:
+                state.cancel.set()
+                raise
+            except Exception:
+                sequence += 1
+                terminal = True
+                yield _sse("error", {
+                    "request_id": request_id,
+                    "protocol_version": PROTOCOL_VERSION,
+                    "sequence": sequence,
+                    "error_code": "internal_error",
+                })
             finally:
                 if not terminal and not state.cancel.is_set():
                     state.cancel.set()
