@@ -1,6 +1,6 @@
 # Voice wake-word runtime evaluation
 
-Reviewed: 2026-11-18
+Reviewed: 2026-11-21
 
 ## Decision
 
@@ -8,12 +8,14 @@ No production Arabic/Iraqi wake-word model is approved or bundled. Keep `Keyword
 
 ## Candidate assessment
 
-### Heed Wake Word — open-source prototype candidate
+### Heed Wake Word — primary experimental candidate, not approved
 
 - Project: https://github.com/AndreiBulzan/heed-wakeword
-- The project documents ONNX/TFLite export and mobile/Android deployment paths, and custom phrase training.
-- Its documented ready-made examples do not establish an Arabic/Iraqi pretrained model or measured results for «يا NOID».
-- Decision: the most practical open-source route to investigate for a locally trained prototype. It is not approved for integration until the exact trained artifact, operator compatibility, license/provenance, and held-out Iraqi Arabic results are available.
+- The upstream project is Apache-2.0 and documents custom phrase training, ONNX FP32/INT8 and TFLite export, a separate `wake.json` preprocessing contract, and Android/iOS deployment examples.
+- Its documented preprocessing uses a 25 ms Hann window, 512-point FFT, 40-bin log-mel, and CMN. This is a plausible match for the repository's Heed-reference DSP work, but exact numerical parity must be verified for the pinned revision.
+- Custom phrase training makes «يا NOID» an experiment worth pursuing. It does not prove Arabic/Iraqi pronunciation quality, speaker generalization, or acceptable false-activation rates.
+- Upstream model size and latency figures are not NOID device measurements. No trained Arabic model or Android inference adapter has been verified.
+- Decision: use Heed for the first controlled local training experiment. Preserve its LICENSE and NOTICE if code is copied; separately review each TTS voice/model license. Keep recordings local and do not use hosted training with personal audio. See `docs/HEED_KWS_CANDIDATE_REVIEW.md`.
 
 ### Voicute ONNX Wake Word
 
@@ -29,7 +31,7 @@ No production Arabic/Iraqi wake-word model is approved or bundled. Keep `Keyword
 
 ## Required work before integration
 
-1. Obtain a real Arabic/Iraqi model artifact for the exact phrase «يا NOID» and record its source, license, SHA-256, runtime version, sample rate, frame size, and preprocessing requirements.
+1. Train or obtain a real Arabic/Iraqi model artifact for the exact phrase «يا NOID» and record its source, license, SHA-256, runtime version, sample rate, frame size, and preprocessing requirements.
 2. Verify the model can run locally on Android arm64 without network access during inference. No secrets or model weights are committed to Git.
 3. Collect consented recordings locally. Keep speakers disjoint between training, calibration, and final test. Minimum: 300 positive utterances from at least 10 speakers (at least 4 held out) and 8 hours of varied negative audio.
 4. Compare model preprocessing against reference test vectors and measure held-out recall, false activations, trigger latency, crashes, memory, CPU, thermal behavior, and battery on the actual target phone.
@@ -61,4 +63,4 @@ Threshold tuning uses calibration data only. Keep the final test set untouched u
 
 ## Current status
 
-The repository has a provider-neutral KWS contract, metadata/frame boundary checks, a fail-closed foreground-service shell, and unit tests for policy. It does not contain an acoustic detector, a real Arabic model, a microphone capture pipeline, or target-device benchmark evidence. User-triggered Android dictation remains the only operational voice-input path.
+The repository has a provider-neutral KWS contract, metadata/frame boundary checks, a fail-closed foreground-service shell, strict model-bundle integrity checks, Kotlin DSP preprocessing, and Heed-derived parity fixtures. It does not contain a trained Arabic model, an ONNX/TFLite inference adapter, a microphone capture pipeline, or target-device benchmark evidence. User-triggered Android dictation remains the only operational voice-input path.
