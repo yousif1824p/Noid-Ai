@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 enum class NoidDestination(val label: String) {
     CHAT("المحادثة"),
     MEMORY("الذاكرة"),
+    LEARNING("التعلّم"),
     APK_INSPECTION("فحص APK"),
     PROJECT_SCAN("فحص مشروع"),
     PROJECT_FILES("ملفات المشروع"),
