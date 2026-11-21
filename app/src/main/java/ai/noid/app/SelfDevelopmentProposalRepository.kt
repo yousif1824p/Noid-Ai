@@ -19,7 +19,8 @@ class SelfDevelopmentProposalRepository(
         rationale: String,
         relativePath: String,
         originalContent: String,
-        proposedContent: String
+        proposedContent: String,
+        projectTreeUri: String
     ): Long {
         val safeTitle = title.trim()
         val safeRationale = rationale.trim()
@@ -33,6 +34,10 @@ class SelfDevelopmentProposalRepository(
         require(safeTitle.length <= MAX_TITLE_CHARS) { "عنوان التغيير طويل جداً." }
         require(safeRationale.isNotEmpty()) { "سبب التغيير مطلوب." }
         require(safeRationale.length <= MAX_RATIONALE_CHARS) { "سبب التغيير طويل جداً." }
+        val safeTreeUri = projectTreeUri.trim()
+        require(safeTreeUri.startsWith("content://") && safeTreeUri.length <= MAX_TREE_URI_CHARS) {
+            "معرّف مجلد المشروع غير صالح."
+        }
         require(originalContent.toByteArray(Charsets.UTF_8).size <= MAX_CONTENT_BYTES) {
             "المحتوى الأصلي يتجاوز حد 2 ميغابايت."
         }
@@ -47,6 +52,7 @@ class SelfDevelopmentProposalRepository(
                 title = safeTitle,
                 rationale = safeRationale,
                 relativePath = normalizedPath,
+                projectTreeUri = safeTreeUri,
                 originalContent = originalContent,
                 proposedContent = proposedContent,
                 originalSha256 = sha256(originalContent),
@@ -100,6 +106,7 @@ class SelfDevelopmentProposalRepository(
         const val MAX_TITLE_CHARS = 120
         const val MAX_RATIONALE_CHARS = 1_000
         const val MAX_CONTENT_BYTES = 2 * 1024 * 1024
+        const val MAX_TREE_URI_CHARS = 2_048
         const val MAX_RECENT = 100
 
         fun sha256(content: String): String {
