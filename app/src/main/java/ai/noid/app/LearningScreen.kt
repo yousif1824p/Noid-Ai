@@ -56,7 +56,7 @@ fun LearningScreen(viewModel: LearningViewModel) {
         ) { Text("إرسال للمراجعة") }
         message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
         Text("اقتراحات تنتظر موافقتك: ${pending.size}", style = MaterialTheme.typography.titleMedium)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(pending, key = { it.id }) { record ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
