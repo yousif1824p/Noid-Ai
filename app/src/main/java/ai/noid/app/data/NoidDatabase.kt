@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [ChatMessage::class, UserMemory::class, ToolAuditEvent::class, LearningRecord::class, SelfDevelopmentProposal::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class NoidDatabase : RoomDatabase() {
@@ -100,6 +100,14 @@ abstract class NoidDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE self_development_proposals ADD COLUMN projectTreeUri TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: NoidDatabase? = null
 
@@ -110,7 +118,7 @@ abstract class NoidDatabase : RoomDatabase() {
                     NoidDatabase::class.java,
                     "noid-local.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { INSTANCE = it }
             }
