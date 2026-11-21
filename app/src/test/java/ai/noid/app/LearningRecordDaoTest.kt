@@ -1,6 +1,7 @@
 package ai.noid.app
 
 import androidx.room.Room
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,15 +23,11 @@ class LearningRecordDaoTest {
             val pendingId = dao.insert(
                 LearningRecord(title = "قواعد Kotlin", content = "المحتوى", source = "اختبار")
             )
-            assertEquals(1, dao.observePending().let { flow ->
-                var count = 0
-                kotlinx.coroutines.flow.first(flow).also { count = it.size }
-                count
-            })
+            assertEquals(1, dao.observePending().first().size)
             assertTrue(dao.getApprovedRecent(10).isEmpty())
 
             assertEquals(1, dao.approvePending(pendingId, 100L))
-            assertTrue(dao.observePending().let { kotlinx.coroutines.flow.first(it).isEmpty() })
+            assertTrue(dao.observePending().first().isEmpty())
             assertEquals(pendingId, dao.getApprovedRecent(10).single().id)
 
             val rejectedId = dao.insert(
