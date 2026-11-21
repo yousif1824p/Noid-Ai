@@ -6,6 +6,10 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URL
 import java.security.Principal
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.tls.HandshakeCertificates
+import okhttp3.tls.HeldCertificate
 import java.security.cert.Certificate
 import javax.net.ssl.HttpsURLConnection
 import javax.security.auth.x500.X500Principal
@@ -100,6 +104,55 @@ class RemoteChatHttpCallTest {
         assertEquals(null, fake.getRequestProperty("Authorization"))
         assertTrue(!fake.instanceFollowRedirects)
         assertTrue(fake.disconnected)
+    }
+
+    @Test
+    fun exchangesARealTlsSseResponseOverTheNetwork() {
+        val server = MockWebServer()
+        val certificate = HeldCertificate.Builder()
+            .addSubjectAlternativeName("localhost")
+            .build()
+        val serverTls = HandshakeCertificates.Builder()
+            .heldCertificate(certificate)
+            .build()
+        val clientTls = HandshakeCertificates.Builder()
+            .addTrustedCertificate(certificate.certificate)
+            .build()
+        server.useHttps(serverTls.sslSocketFactory(), false)
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "text/event-stream; charset=utf-8")
+                .setBody(validSse)
+        )
+        server.start()
+        try {
+            val call = RemoteChatHttpCall(
+                enabled = true,
+                userInitiated = true,
+                endpoint = "https://assistant.example/v1/chat",
+                request = request,
+                connectionFactory = {
+                    (server.url("/v1/chat").toUrl().openConnection() as HttpsURLConnection).apply {
+                        sslSocketFactory = clientTls.sslSocketFactory()
+                    }
+                }
+            )
+
+            val events = call.execute()
+            val received = server.takeRequest()
+
+            assertEquals("POST", received.method)
+            assertEquals("/v1/chat", received.path)
+            assertEquals("hello", received.body.readUtf8().let { body ->
+                org.json.JSONObject(body).getJSONArray("messages")
+                    .getJSONObject(0).getString("content")
+            })
+            assertEquals(listOf("started", "delta", "completed"), events.map { it.frame.event })
+            assertEquals("hello", events[1].envelope.text)
+        } finally {
+            server.shutdown()
+        }
     }
 
     @Test

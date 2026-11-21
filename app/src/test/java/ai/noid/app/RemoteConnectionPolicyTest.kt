@@ -43,6 +43,16 @@ class RemoteConnectionPolicyTest {
         }
     }
 
+    @Test fun acceptsExplicitPrivateNetworkEndpointsForUserConfiguredLocalEngines() {
+        listOf(
+            "https://192.168.1.10/v1/chat",
+            "https://127.0.0.1/v1/chat"
+        ).forEach { endpoint ->
+            val uri = RemoteConnectionPolicy.validate(enabled = true, endpoint = endpoint)
+            assertEquals("https", uri?.scheme)
+        }
+    }
+
     @Test fun rejectsUnexpectedPortsAndInvalidHosts() {
         listOf("https://ai.example.com:8443", "https:///missing-host", "https://bad host/path").forEach {
             assertThrows(IllegalArgumentException::class.java) {
