@@ -22,10 +22,16 @@ class ProjectTextDiffTest {
         assertTrue(result.lines.all { it.kind == ProjectDiffKind.UNCHANGED })
     }
 
-    @Test fun largeDiffIsBounded() {
+    @Test fun largeDiffUsesCompleteReplacementViewInsteadOfHidingLines() {
         val before = (1..ProjectTextDiff.MAX_LINES_PER_SIDE + 1).joinToString("\n") { "line-$it" }
-        val result = ProjectTextDiff.compare(before, before + "\nnew")
-        assertTrue(result.truncated)
-        assertTrue(result.lines.isEmpty())
+        val updated = before + "\nnew"
+        val result = ProjectTextDiff.compare(before, updated)
+        assertFalse(result.truncated)
+        assertEquals(ProjectTextDiff.MAX_LINES_PER_SIDE + 1, result.removals)
+        assertEquals(ProjectTextDiff.MAX_LINES_PER_SIDE + 2, result.additions)
+        assertEquals(result.removals + result.additions, result.lines.size)
+        assertEquals(ProjectDiffKind.REMOVED, result.lines.first().kind)
+        assertEquals(ProjectDiffKind.ADDED, result.lines.last().kind)
+        assertEquals("new", result.lines.last().text)
     }
 }
