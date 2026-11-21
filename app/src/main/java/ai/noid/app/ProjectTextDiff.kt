@@ -19,11 +19,17 @@ object ProjectTextDiff {
         val before = original.split('\n')
         val after = updated.split('\n')
         if (before.size > MAX_LINES_PER_SIDE || after.size > MAX_LINES_PER_SIDE) {
+            // A complete replacement view is less compact but remains truthful and
+            // bounded by the proposal repository's 2 MiB per-snapshot limit.
+            val completeReplacement = buildList(before.size + after.size) {
+                before.forEach { add(ProjectDiffLine(ProjectDiffKind.REMOVED, it)) }
+                after.forEach { add(ProjectDiffLine(ProjectDiffKind.ADDED, it)) }
+            }
             return ProjectDiffResult(
-                lines = emptyList(),
-                additions = -1,
-                removals = -1,
-                truncated = true
+                lines = completeReplacement,
+                additions = after.size,
+                removals = before.size,
+                truncated = false
             )
         }
 
