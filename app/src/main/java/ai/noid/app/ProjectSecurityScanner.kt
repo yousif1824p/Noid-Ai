@@ -30,6 +30,18 @@ object ProjectSecurityScanner {
 
     fun scan(files: List<ProjectSourceFile>): List<ApkSecurityFinding> {
         val findings = mutableListOf<ApkSecurityFinding>()
+        if (files.size > MAX_INPUT_FILES) {
+            val skippedCount = files.size - MAX_INPUT_FILES
+            findings += ApkSecurityFinding(
+                id = "source.scan_input_limit",
+                severity = ApkFindingSeverity.LOW,
+                title = "الفحص غير مكتمل بسبب حد الملفات",
+                description = "تجاوز المشروع الحد الأقصى للملفات؛ لم يشمل الفحص جميع الملفات.",
+                evidence = "فُحصت أول $MAX_INPUT_FILES ملفاً من أصل ${files.size}؛ لم تُفحص $skippedCount ملفات.",
+                recommendation = "قسّم المشروع إلى أجزاء أصغر وأعد فحص الملفات المتبقية قبل اعتبار المراجعة مكتملة.",
+                confidence = ApkFindingConfidence.HIGH
+            )
+        }
         files.take(MAX_INPUT_FILES).forEach { file ->
             val path = ProjectFilePolicy.normalizeRelativePath(file.relativePath) ?: return@forEach
             if (!ProjectFilePolicy.isEditableTextFile(path.substringAfterLast('/'))) return@forEach

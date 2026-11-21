@@ -99,6 +99,8 @@
 - [ ] Add controlled dynamic checks against a deliberately vulnerable Android sample app/test environment and validate them on a device.
 - [x] Add bounded in-memory remediation diff previews for supported manifest attributes, rescan proposed content, and verify that unrelated or remaining findings are not incorrectly marked resolved; previews never write project files.
 
+- [x] Report when direct source-scan input exceeds the 500-file cap, preserve the finding-count bound, and test that skipped files cannot be mistaken for inspected files.
+
 ## Stage 5 — optional remote services
 - [x] Specify a versioned, opt-in HTTP/SSE contract, including transport, authentication, bounded payloads, streaming events, cancellation, and local permission boundaries; the HTTPS/SSE client implementation and unit tests are recorded below; live-server interoperability remains pending.
 - [x] Add bounded JSON serialization for validated remote chat requests, emitting only request IDs and plain-text user/assistant messages; verify exact schema, Unicode round-tripping, unsupported-role rejection, and UTF-8/body limits with unit tests. This does not perform network I/O.

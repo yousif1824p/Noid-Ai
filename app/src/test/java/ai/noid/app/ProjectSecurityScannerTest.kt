@@ -117,13 +117,28 @@ class ProjectSecurityScannerTest {
         assertEquals(ProjectSecurityScanner.MAX_FINDINGS, findings.size)
     }
 
-    @Test fun boundsDirectScannerInputFileCount() {
+    @Test fun reportsIncompleteScanWhenDirectInputExceedsFileLimit() {
         val files = (1..ProjectSecurityScanner.MAX_INPUT_FILES).map { index ->
             ProjectSourceFile("app/config-$index.properties", "ordinary configuration")
         } + ProjectSourceFile(
             "app/last.properties",
             """api_key = "late-secret-value-12345""""
         )
+
+        val findings = ProjectSecurityScanner.scan(files)
+        val limitFinding = findings.single { it.id == "source.scan_input_limit" }
+
+        assertEquals(ApkFindingSeverity.LOW, limitFinding.severity)
+        assertTrue(limitFinding.description.contains("لم يشمل الفحص جميع الملفات"))
+        assertTrue(limitFinding.evidence.contains("501"))
+        assertTrue(limitFinding.evidence.contains("لم تُفحص 1 ملفات"))
+        assertFalse(findings.any { it.evidence.contains("late-secret-value-12345") })
+    }
+
+    @Test fun doesNotReportInputLimitWhenAllFilesAreWithinBound() {
+        val files = (1..ProjectSecurityScanner.MAX_INPUT_FILES).map { index ->
+            ProjectSourceFile("app/config-$index.properties", "ordinary configuration")
+        }
 
         assertTrue(ProjectSecurityScanner.scan(files).isEmpty())
     }
