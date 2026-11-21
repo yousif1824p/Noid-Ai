@@ -44,9 +44,19 @@ class ScorecardTests(unittest.TestCase):
         self.assertFalse(validate(self.write_rows([self.row("L1", intelligibility="6")]))["valid"])
 
     def test_old_dialect_column_is_rejected(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        path = Path(temp.name) / "legacy-dialect.csv"
+        headers = (*COLUMNS, "dialect")
         row = self.row("L1")
         row["dialect"] = "iraqi"
-        self.assertFalse(validate(self.write_rows([row]))["valid"])
+        with path.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=headers)
+            writer.writeheader()
+            writer.writerow(row)
+        result = validate(path)
+        self.assertFalse(result["valid"])
+        self.assertTrue(any("Unexpected columns: dialect" in error for error in result["errors"]))
 
     def test_small_panel_is_not_misrepresented_as_sufficient(self):
         result = validate(self.write_rows([self.row("L1")]))
