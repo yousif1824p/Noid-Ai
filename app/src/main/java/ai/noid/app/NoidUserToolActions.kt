@@ -7,6 +7,7 @@ object NoidUserToolActions {
     val PROJECT_FILE_CREATE = ToolAction("project-file-create", ToolCapability.WRITE_FILES, ToolRisk.REVERSIBLE, "إنشاء ملف نصي فارغ داخل مجلد المشروع المختار")
     val PROJECT_FILE_SAVE = ToolAction("project-file-save", ToolCapability.WRITE_FILES, ToolRisk.SENSITIVE, "حفظ تعديل ملف مشروع اختاره المستخدم")
     val PROJECT_FILE_RESTORE = ToolAction("project-file-restore", ToolCapability.WRITE_FILES, ToolRisk.SENSITIVE, "استعادة نسخة احتياطية لملف المشروع")
+    val SELF_DEVELOPMENT_APPLY = ToolAction("self-development-apply-approved-proposal", ToolCapability.WRITE_FILES, ToolRisk.SENSITIVE, "تطبيق مقترح تطوير معتمد بعد فحص المصدر والنسخ الاحتياطي")
     val PROJECT_FILE_RENAME = ToolAction("project-file-rename", ToolCapability.WRITE_FILES, ToolRisk.REVERSIBLE, "إعادة تسمية ملف نصي في مجلد اختاره المستخدم")
     val PROJECT_SOURCE_STATIC_SCAN = ToolAction("project-source-static-scan", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "فحص ساكن لملفات مشروع اختاره المستخدم")
     val APK_MANIFEST_INSPECTION = ToolAction("apk-manifest-inspection", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة Manifest لملف APK اختاره المستخدم")
@@ -17,7 +18,7 @@ object NoidUserToolActions {
 
     val all: List<ToolAction> = listOf(
         PROJECT_DIRECTORY_LIST, PROJECT_FILE_READ, PROJECT_FILE_CREATE,
-        PROJECT_FILE_SAVE, PROJECT_FILE_RESTORE, PROJECT_FILE_RENAME,
+        PROJECT_FILE_SAVE, PROJECT_FILE_RESTORE, SELF_DEVELOPMENT_APPLY, PROJECT_FILE_RENAME,
         PROJECT_SOURCE_STATIC_SCAN, APK_MANIFEST_INSPECTION, APK_REPORT_EXPORT,
         TEXT_MODEL_IMPORT, VISION_MODEL_IMPORT, VISION_IMAGE_ANALYSIS
     )
