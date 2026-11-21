@@ -55,3 +55,49 @@ class ProjectFilePolicyTest {
         assertFalse(ProjectFilePolicy.isEditableTextFile("payload.apk"))
     }
 }
+
+    @Test fun rejectsLeadingWhitespaceInsteadOfRedirectingToAnotherFile() {
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath(" app/Main.kt"))
+    }
+
+    @Test fun rejectsTrailingWhitespaceInsteadOfRedirectingToAnotherFile() {
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app/Main.kt "))
+    }
+
+    @Test fun preservesIntentionalWhitespaceInsidePathSegments() {
+        assertEquals("app/my source/Main File.kt", ProjectFilePolicy.normalizeRelativePath("app/my source/Main File.kt"))
+    }
+
+    @Test fun rejectsRepeatedPathSeparators() {
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app//Main.kt"))
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app\\\\Main.kt"))
+    }
+
+    @Test fun rejectsTrailingPathSeparatorsForFilePaths() {
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app/Main.kt/"))
+    }
+
+    @Test fun acceptsOnlyTheExplicitGitignoreDotfile() {
+        assertTrue(ProjectFilePolicy.isEditableTextFile(".gitignore"))
+        assertFalse(ProjectFilePolicy.isEditableTextFile(".env"))
+        assertFalse(ProjectFilePolicy.isEditableTextFile(".secrets"))
+    }
+
+    @Test fun treatsSupportedExtensionsCaseInsensitively() {
+        assertTrue(ProjectFilePolicy.isEditableTextFile("MainActivity.KT"))
+        assertTrue(ProjectFilePolicy.isEditableTextFile("CONFIG.JSON"))
+    }
+
+    @Test fun rejectsExtensionlessAndTrailingDotNames() {
+        assertFalse(ProjectFilePolicy.isEditableTextFile("Makefile"))
+        assertFalse(ProjectFilePolicy.isEditableTextFile("notes."))
+    }
+
+    @Test fun rejectsDriveRelativePathsAsWellAsDriveAbsolutePaths() {
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("C:private.txt"))
+    }
+
+    @Test fun doesNotTreatWhitespaceOnlySegmentsAsValidPaths() {
+        assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app/   /Main.kt"))
+    }
+

@@ -25,7 +25,9 @@ object ProjectFilePolicy {
 
     fun normalizeRelativePath(path: String): String? {
         if (path.length > MAX_RELATIVE_PATH_CHARS || containsUnsafePathCharacters(path)) return null
-        val candidate = path.trim().replace('\\', '/')
+        // Never trim a path: doing so can silently redirect an operation to a different file.
+        if (path != path.trim()) return null
+        val candidate = path.replace('\\', '/')
         if (candidate.isEmpty() || candidate.startsWith("/") || candidate.contains('\u0000') ||
             candidate.matches(Regex("^[A-Za-z]:.*"))
         ) return null
