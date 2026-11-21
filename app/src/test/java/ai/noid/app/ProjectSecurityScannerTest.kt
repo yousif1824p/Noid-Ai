@@ -117,6 +117,17 @@ class ProjectSecurityScannerTest {
         assertEquals(ProjectSecurityScanner.MAX_FINDINGS, findings.size)
     }
 
+    @Test fun boundsDirectScannerInputFileCount() {
+        val files = (1..ProjectSecurityScanner.MAX_INPUT_FILES).map { index ->
+            ProjectSourceFile("app/config-$index.properties", "ordinary configuration")
+        } + ProjectSourceFile(
+            "app/last.properties",
+            """api_key = "late-secret-value-12345""""
+        )
+
+        assertTrue(ProjectSecurityScanner.scan(files).isEmpty())
+    }
+
     @Test fun flagsCleartextAndDebugSettings() {
         val findings = ProjectSecurityScanner.scan(
             listOf(ProjectSourceFile("app/src/main/AndroidManifest.xml", "<application android:debuggable=\"true\" android:usesCleartextTraffic=\"true\" />"))
