@@ -56,7 +56,7 @@ object ProjectSecurityScanner {
         files.take(MAX_INPUT_FILES).forEach { file ->
             val path = ProjectFilePolicy.normalizeRelativePath(file.relativePath) ?: return@forEach
             if (!ProjectFilePolicy.isEditableTextFile(path.substringAfterLast('/'))) return@forEach
-            if (file.content.toByteArray(StandardCharsets.UTF_8).size > ProjectFilePolicy.MAX_TEXT_FILE_BYTES) return@forEach
+            if (exceedsUtf8ByteLimit(file.content, ProjectFilePolicy.MAX_TEXT_FILE_BYTES)) return@forEach
 
             file.content.lineSequence().forEachIndexed { index, line ->
                 val lineNumber = index + 1
@@ -148,6 +148,33 @@ object ProjectSecurityScanner {
             }
         }
         return findings.distinctBy { it.id }
+    }
+
+    /**
+     * Checks the encoded UTF-8 size without allocating a second byte array for
+     * potentially untrusted source text. Stops as soon as the configured cap
+     * is exceeded.
+     */
+    private fun exceedsUtf8ByteLimit(value: String, limit: Long): Boolean {
+        var byteCount = 0L
+        var index = 0
+        while (index < value.length) {
+            val current = value[index]
+            byteCount += when {
+                current.code <= 0x7F -> 1
+                current.code <= 0x7FF -> 2
+                current.isHighSurrogate() && index + 1 < value.length &&
+                    value[index + 1].isLowSurrogate() -> {
+                    index++
+                    4
+                }
+                current.isSurrogate() -> 1 // String UTF-8 replacement for malformed UTF-16.
+                else -> 3
+            }
+            if (byteCount > limit) return true
+            index++
+        }
+        return false
     }
 
     const val MAX_FINDINGS = 5_000
