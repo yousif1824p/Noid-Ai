@@ -80,6 +80,21 @@ jobs:
         working-directory: tools/signing-preflight
         run: python -m unittest discover -s tests -v
 
+  controlled-http-lab-tests:
+    name: Controlled loopback HTTP assessment lab
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run loopback-only dynamic lab tests
+        working-directory: tools/controlled-http-lab
+        run: python -m unittest discover -s tests -v
+
   unit-tests:
     name: Android unit tests (no APK packaging)
     needs: dsp-generator-tests

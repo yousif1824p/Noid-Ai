@@ -95,7 +95,8 @@
 - [x] Add scope validation and per-check risk/authorization gates for read-only APK Manifest and selected project-source checks; dynamic/network adapters remain unimplemented.
 - [x] Add authorization regression tests proving dynamic/network checks fail closed without target authorization and target modification remains denied.
 - [x] Add a deterministic simulation-only lab harness for the registered sample target, with explicit simulation provenance, authorization/isolation gates, bounded probe inputs, and zero file/network side effects; unit tests cover rejection and simulated findings. This is not a real APK/process dynamic test.
-- [ ] Add controlled dynamic checks for a deliberately vulnerable sample app/test environment.
+- [x] Add a host-only dynamic HTTP lab with an intentionally vulnerable loopback fixture, bounded redirect/path-traversal probes, and tests that reject non-loopback targets. This is not an Android APK/process assessment.
+- [ ] Add controlled dynamic checks against a deliberately vulnerable Android sample app/test environment and validate them on a device.
 - [x] Add bounded in-memory remediation diff previews for supported manifest attributes, rescan proposed content, and verify that unrelated or remaining findings are not incorrectly marked resolved; previews never write project files.
 
 ## Stage 5 — optional remote services
