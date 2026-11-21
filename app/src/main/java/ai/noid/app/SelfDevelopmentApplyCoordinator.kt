@@ -92,7 +92,8 @@ class SelfDevelopmentApplyCoordinator(
                 action = action,
                 grantedCapabilities = {
                     val active = selectedTree.current()
-                    if (active?.selectionId != expectedSelectionId ||
+                    if (active == null ||
+                        active.selectionId != expectedSelectionId ||
                         active.uri != initialSelection.uri
                     ) emptySet() else currentGrantCapabilities(initialSelection.uri)
                 },
