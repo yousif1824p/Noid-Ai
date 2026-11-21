@@ -162,7 +162,7 @@ fun ProjectScanScreen(
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         result?.let { scan ->
             Text("الملفات المفحوصة: ${scan.scannedFiles}")
-            Text("الملفات المتجاوزة: ${scan.skippedFiles}")
+            Text("العناصر المتجاوزة: ${scan.skippedFiles}")
             Text("المؤشرات المكتشفة: ${scan.findings.size}")
             Text(
                 "الفحص ساكن أولي؛ راجع السياق يدوياً قبل اعتبار أي نتيجة ثغرة مؤكدة.",
