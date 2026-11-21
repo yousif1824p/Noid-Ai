@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
         val database = NoidDatabase.getInstance(applicationContext)
         val chatRepository = ChatRepository(database.chatMessageDao())
         val memoryRepository = MemoryRepository(database.userMemoryDao())
+        val learningRepository = LearningRepository(database.learningRecordDao())
         val toolAuditRepository = ToolAuditRepository(database.toolAuditDao())
         val selectedProjectTree = SelectedProjectTreeSession()
         val toolExecutionCoordinator = ToolExecutionCoordinator()
@@ -130,6 +131,7 @@ class MainActivity : ComponentActivity() {
             ChatViewModelFactory(
                 chatRepository,
                 memoryRepository,
+                learningRepository,
                 engine,
                 toolRegistry,
                 remoteChatAdapter
