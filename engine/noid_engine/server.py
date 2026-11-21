@@ -19,6 +19,7 @@ MAX_MESSAGE_CHARS = 32_000
 MAX_CONTEXT_BYTES = 65_536
 MAX_REQUEST_ID_CHARS = 64
 MAX_OUTPUT_CHARS = 32_000
+MAX_DELTA_CHARS = 8_000
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._~-]{1,64}$")
 ALLOWED_ROLES = {"user", "assistant"}
 
@@ -169,13 +170,14 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
                                 "error_code": "output_limit",
                             })
                             return
-                        sequence += 1
-                        yield _sse("delta", {
-                            "request_id": request_id,
-                            "protocol_version": PROTOCOL_VERSION,
-                            "sequence": sequence,
-                            "text": fragment,
-                        })
+                        for offset in range(0, len(fragment), MAX_DELTA_CHARS):
+                            sequence += 1
+                            yield _sse("delta", {
+                                "request_id": request_id,
+                                "protocol_version": PROTOCOL_VERSION,
+                                "sequence": sequence,
+                                "text": fragment[offset:offset + MAX_DELTA_CHARS],
+                            })
                     if state.cancel.is_set():
                         sequence += 1
                         terminal = True
