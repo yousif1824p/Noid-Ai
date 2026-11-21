@@ -6,6 +6,9 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.StandardOpenOption
 import java.util.Properties
 
 data class ProjectFileEntry(
@@ -96,12 +99,13 @@ class ProjectFileRepository(
             file.length() > ProjectFilePolicy.MAX_TEXT_FILE_BYTES
         ) throw IOException("الملف أو المحتوى يتجاوز حد 2 ميغابايت.")
 
-        if (!backupDirectory.exists() && !backupDirectory.mkdirs()) throw IOException("تعذر إنشاء مجلد النسخ الاحتياطية.")
-        val backup = File.createTempFile("noid-project-", ".bak", backupDirectory)
+        ProjectBackupDirectoryPolicy.ensure(backupDirectory, createIfMissing = true)
+        val backupPath = Files.createTempFile(backupDirectory.toPath(), "noid-project-", ".bak")
+        val backup = backupPath.toFile()
         var backupComplete = false
         try {
             resolver.openInputStream(file.uri)?.use { input ->
-                backup.outputStream().use { output ->
+                Files.newOutputStream(backupPath, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS).use { output ->
                     val buffer = ByteArray(8192)
                     var total = 0L
                     while (true) {
@@ -149,7 +153,7 @@ class ProjectFileRepository(
 
     /** Returns durable backups, newest first; an optional path narrows the history. */
     fun listBackups(relativePath: String? = null): List<ProjectFileBackup> {
-        if (!backupDirectory.isDirectory) return emptyList()
+        if (!ProjectBackupDirectoryPolicy.ensure(backupDirectory, createIfMissing = false)) return emptyList()
         val normalizedFilter = relativePath?.let {
             ProjectFilePolicy.normalizeRelativePath(it) ?: throw IOException("مسار الملف غير صالح.")
         }
@@ -161,6 +165,9 @@ class ProjectFileRepository(
     }
 
     fun deleteBackup(backup: ProjectFileBackup): Boolean {
+        if (!ProjectBackupDirectoryPolicy.ensure(backupDirectory, createIfMissing = false)) {
+            throw IOException("مجلد النسخ الاحتياطية غير متاح.")
+        }
         val canonicalDirectory = backupDirectory.canonicalFile
         val canonicalBackup = backup.backupFile.canonicalFile
         if (canonicalBackup.parentFile != canonicalDirectory || canonicalBackup.extension != "bak") {
@@ -177,9 +184,13 @@ class ProjectFileRepository(
             setProperty("createdAt", backup.backupFile.lastModified().toString())
         }
         val target = metadataFile(backup.backupFile)
-        val temporary = File.createTempFile("noid-meta-", ".tmp", backupDirectory)
+        ProjectBackupDirectoryPolicy.ensure(backupDirectory, createIfMissing = true)
+        val temporaryPath = Files.createTempFile(backupDirectory.toPath(), "noid-meta-", ".tmp")
+        val temporary = temporaryPath.toFile()
         try {
-            temporary.outputStream().use { metadata.store(it, "NOID project backup") }
+            Files.newOutputStream(temporaryPath, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS).use {
+                metadata.store(it, "NOID project backup")
+            }
             if (!temporary.renameTo(target)) throw IOException("تعذر حفظ بيانات النسخة الاحتياطية.")
         } finally {
             temporary.delete()
@@ -201,6 +212,9 @@ class ProjectFileRepository(
     private fun metadataFile(backupFile: File): File = File(backupFile.parentFile, backupFile.name + ".meta")
 
     fun restoreBackup(rootTreeUri: Uri, backup: ProjectFileBackup): ProjectFileBackup {
+        if (!ProjectBackupDirectoryPolicy.ensure(backupDirectory, createIfMissing = false)) {
+            throw IOException("مجلد النسخ الاحتياطية غير متاح.")
+        }
         if (!backup.backupFile.isFile || backup.backupFile.length() > ProjectFilePolicy.MAX_TEXT_FILE_BYTES) {
             throw IOException("النسخة الاحتياطية غير صالحة.")
         }
