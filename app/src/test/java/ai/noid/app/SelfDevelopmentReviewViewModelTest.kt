@@ -52,7 +52,7 @@ class SelfDevelopmentReviewViewModelTest {
 
         val failingDao = FakeProposalDao().apply { failReview = true }
         val failingRepository = SelfDevelopmentProposalRepository(failingDao)
-        val failingId = runSuspend { failingRepository.propose("تعديل", "سبب", "src/A.kt", "old", "new") }
+        val failingId = runSuspend { failingRepository.propose("تعديل", "سبب", "src/A.kt", "old", "new", testTreeUri) }
         val failingViewModel = SelfDevelopmentReviewViewModel(failingRepository)
         idleMainLooper()
         failingViewModel.approve(failingId)
