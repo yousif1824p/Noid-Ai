@@ -134,3 +134,11 @@ Each stage must be tested and reviewed before proceeding. Checklist items are no
 - [x] Add strict keyword-runtime boundary validation for exact PCM frame lengths, configured wake phrase, finite confidence in [0,1], and bounded unavailable reasons, with unit tests; this remains a contract/policy layer, not an audio detector.
 - [x] Add negative tests for invalid KWS metadata, non-local descriptors, and invalid sample/frame ranges; still no microphone capture or acoustic detector.
 - [x] Verify Kotlin wake-word DSP features against a shared reference generated from the pinned real Heed profile in CI; the Python job creates the actual coefficient payload and 40×101 reference features, and the Android test checks RMSE and maximum error. This proves preprocessing parity for the reference signal, not a trained KWS detector or target-device readiness.
+
+
+## Stage 3A — self-development proposal foundation
+- [x] Add a dedicated Room proposal record, DAO, bounded repository, original/proposed SHA-256 fingerprints, conditional pending-review transitions, and non-destructive v4-to-v5 migration with repository and Room DAO tests. This stores proposals only; approval never writes project files.
+- [ ] Add the proposal review screen and connect model output to the strict proposal repository.
+- [ ] Add stale-source detection by re-reading the exact SAF file and comparing its current SHA-256 before any apply attempt.
+- [ ] Add an explicit, audited, backup-backed apply flow through the existing ToolRegistry; approval alone must never authorize a file write.
+- [ ] Add end-to-end tests for stale snapshots, revoked SAF grants, failed pre-audit, cancellation, rollback, and duplicate apply attempts.

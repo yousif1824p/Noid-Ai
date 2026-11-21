@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [ChatMessage::class, UserMemory::class, ToolAuditEvent::class, LearningRecord::class],
-    version = 4,
+    entities = [ChatMessage::class, UserMemory::class, ToolAuditEvent::class, LearningRecord::class, SelfDevelopmentProposal::class],
+    version = 5,
     exportSchema = false
 )
 abstract class NoidDatabase : RoomDatabase() {
@@ -17,6 +17,7 @@ abstract class NoidDatabase : RoomDatabase() {
     abstract fun userMemoryDao(): UserMemoryDao
     abstract fun toolAuditDao(): ToolAuditDao
     abstract fun learningRecordDao(): LearningRecordDao
+    abstract fun selfDevelopmentProposalDao(): SelfDevelopmentProposalDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -74,6 +75,31 @@ abstract class NoidDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS self_development_proposals (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        rationale TEXT NOT NULL,
+                        relativePath TEXT NOT NULL,
+                        originalContent TEXT NOT NULL,
+                        proposedContent TEXT NOT NULL,
+                        originalSha256 TEXT NOT NULL,
+                        proposedSha256 TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        reviewedAt INTEGER
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_self_development_proposals_status_createdAt ON self_development_proposals(status, createdAt)"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: NoidDatabase? = null
 
@@ -84,7 +110,7 @@ abstract class NoidDatabase : RoomDatabase() {
                     NoidDatabase::class.java,
                     "noid-local.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { INSTANCE = it }
             }
