@@ -34,6 +34,7 @@ class SelfDevelopmentProposalRepositoryTest {
         assertEquals(SelfDevelopmentProposal.STATUS_PENDING_REVIEW, stored.status)
         assertEquals(original, stored.originalContent)
         assertEquals(proposed, stored.proposedContent)
+        assertEquals(testTreeUri, stored.projectTreeUri)
         assertEquals(SelfDevelopmentProposalRepository.sha256(original), stored.originalSha256)
         assertEquals(SelfDevelopmentProposalRepository.sha256(proposed), stored.proposedSha256)
         assertNotEquals(stored.originalSha256, stored.proposedSha256)
@@ -62,6 +63,9 @@ class SelfDevelopmentProposalRepositoryTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { repository.propose("title", "reason", "../secret.kt", "a", "b", testTreeUri) }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.propose("title", "reason", "src/A.kt", "a", "b", "file:///private/path") }
         }
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking { repository.propose("title", "reason", "/absolute.kt", "a", "b", testTreeUri) }
