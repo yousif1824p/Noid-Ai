@@ -364,8 +364,8 @@ class ToolRegistryTest {
 
     @Test
     fun everyUserWorkflowActionRequiresItsExactCapabilityAndUsesTheRegistryGateway() = runBlocking {
-        assertEquals(12, NoidUserToolActions.all.size)
-        assertEquals(12, NoidUserToolActions.all.map { it.actionId }.toSet().size)
+        assertEquals(13, NoidUserToolActions.all.size)
+        assertEquals(13, NoidUserToolActions.all.map { it.actionId }.toSet().size)
         NoidUserToolActions.all.forEach { action ->
             val registry = registry()
             var calls = 0
