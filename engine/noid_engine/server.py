@@ -95,6 +95,7 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
         else:
             backend = UnconfiguredEngine()
     backend_configured = not isinstance(backend, UnconfiguredEngine)
+    backend_configured = not isinstance(backend, UnconfiguredEngine)
     expected_token = token if token is not None else os.environ.get("NOID_API_TOKEN", "")
     active: dict[str, ActiveRequest] = {}
     active_lock = asyncio.Lock()
