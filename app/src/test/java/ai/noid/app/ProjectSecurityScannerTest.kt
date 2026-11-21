@@ -32,7 +32,7 @@ class ProjectSecurityScannerTest {
     @Test fun detectsPrivateKeyHeadersWithoutEchoingKeyMaterial() {
         val keyBody = "PRIVATE-KEY-BODY-DO-NOT-LOG"
         val findings = ProjectSecurityScanner.scan(
-            listOf(ProjectSourceFile("app/keys.pem", "-----BEGIN PRIVATE KEY-----\n$keyBody"))
+            listOf(ProjectSourceFile("app/keys.kt", "-----BEGIN PRIVATE KEY-----\n$keyBody"))
         )
         val finding = findings.single { it.id.startsWith("source.private_key_material") }
         assertEquals(ApkFindingSeverity.HIGH, finding.severity)
