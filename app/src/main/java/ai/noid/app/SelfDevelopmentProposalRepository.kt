@@ -6,9 +6,8 @@ import kotlinx.coroutines.flow.Flow
 /**
  * Durable proposal/review boundary for self-development.
  *
- * This repository never opens, writes, executes, or uploads project files.
- * Applying an approved proposal requires a separate SAF + audit + confirmation
- * workflow and is intentionally not implemented here.
+ * This repository owns proposal state only. Project I/O remains in the separately
+ * audited SAF apply coordinator.
  */
 class SelfDevelopmentProposalRepository(
     private val dao: SelfDevelopmentProposalDao
@@ -56,6 +55,31 @@ class SelfDevelopmentProposalRepository(
             )
         )
     }
+
+    suspend fun getById(id: Long): SelfDevelopmentProposal? {
+        require(id > 0) { "معرّف المقترح غير صالح." }
+        return dao.getById(id)
+    }
+
+    suspend fun claimApprovedForApply(id: Long): Boolean {
+        require(id > 0) { "معرّف المقترح غير صالح." }
+        return dao.claimApprovedForApply(id, System.currentTimeMillis()) == 1
+    }
+
+    suspend fun markApplied(id: Long): Boolean =
+        dao.markApplied(id, System.currentTimeMillis()) == 1
+
+    suspend fun markStale(id: Long): Boolean =
+        dao.markStale(id, System.currentTimeMillis()) == 1
+
+    suspend fun markApplyFailed(id: Long): Boolean =
+        dao.markApplyFailed(id, System.currentTimeMillis()) == 1
+
+    suspend fun markApplyInterrupted(id: Long): Boolean =
+        dao.markApplyInterrupted(id, System.currentTimeMillis()) == 1
+
+    suspend fun releaseApplyClaim(id: Long): Boolean =
+        dao.releaseApplyClaim(id) == 1
 
     suspend fun approve(id: Long): Boolean {
         require(id > 0) { "معرّف المقترح غير صالح." }
