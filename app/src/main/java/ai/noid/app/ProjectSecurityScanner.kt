@@ -56,7 +56,7 @@ object ProjectSecurityScanner {
         files.take(MAX_INPUT_FILES).forEach { file ->
             val path = ProjectFilePolicy.normalizeRelativePath(file.relativePath) ?: return@forEach
             if (!ProjectFilePolicy.isEditableTextFile(path.substringAfterLast('/'))) return@forEach
-            if (exceedsUtf8ByteLimit(file.content, ProjectFilePolicy.MAX_TEXT_FILE_BYTES)) return@forEach
+            if (exceedsUtf8ByteLimit(file.content, ProjectFilePolicy.MAX_TEXT_FILE_BYTES.toLong())) return@forEach
 
             file.content.lineSequence().forEachIndexed { index, line ->
                 val lineNumber = index + 1
