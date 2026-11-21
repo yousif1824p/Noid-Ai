@@ -62,9 +62,26 @@ class ProjectFileRepository(
                 }
                 output.write(buffer, 0, count)
             }
-            output.toString(Charsets.UTF_8.name())
+            try {
+                Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(output.toByteArray())).toString()
+            } catch (failure: java.nio.charset.CharacterCodingException) {
+                throw IOException("ترميز الملف ليس UTF-8 صالحاً.", failure)
+            }
         }
     }
+
+    /**
+     * Re-reads the selected SAF document and compares it with the snapshot captured
+     * when the proposal was created. Call from Dispatchers.IO. This method never writes.
+     */
+    fun verifySourceUnchanged(
+        rootTreeUri: Uri,
+        relativePath: String,
+        expectedSha256: String
+    ): SelfDevelopmentSourceFreshnessResult =
+        SelfDevelopmentSourceFreshness.verify(expectedSha256) {
+            readText(rootTreeUri, relativePath)
+        }
 
     /** Backup is written to app-private storage before the selected document is replaced. */
     fun writeText(rootTreeUri: Uri, relativePath: String, content: String): ProjectFileBackup {
