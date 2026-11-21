@@ -504,6 +504,7 @@ private fun MemoryManagementScreen(viewModel: MemoryViewModel) {
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
     val searchError by viewModel.searchError.collectAsState()
+    val operationMessage by viewModel.operationMessage.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
     var editingMemory by remember { mutableStateOf<UserMemory?>(null) }
     var pendingDelete by remember { mutableStateOf<UserMemory?>(null) }
@@ -624,6 +625,14 @@ private fun MemoryManagementScreen(viewModel: MemoryViewModel) {
             label = { Text("بحث في الذاكرة (حتى 120 حرفاً)") },
             singleLine = true
         )
+        operationMessage?.let { message ->
+            Text(
+                text = message,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                color = if (message.startsWith("تعذر")) Color(0xFFFF9A9A) else Color(0xFF9ED7A5),
+                fontSize = 12.sp
+            )
+        }
         Spacer(Modifier.height(12.dp))
 
         if (memories.isEmpty() && searchQuery.isBlank()) {
