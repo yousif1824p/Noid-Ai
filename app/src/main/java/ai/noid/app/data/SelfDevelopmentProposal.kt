@@ -1,5 +1,6 @@
 package ai.noid.app
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -16,6 +17,7 @@ data class SelfDevelopmentProposal(
     val title: String,
     val rationale: String,
     val relativePath: String,
+    @ColumnInfo(defaultValue = "''") val projectTreeUri: String = "",
     val originalContent: String,
     val proposedContent: String,
     val originalSha256: String,
