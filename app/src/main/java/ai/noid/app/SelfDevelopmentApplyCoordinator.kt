@@ -81,12 +81,7 @@ class SelfDevelopmentApplyCoordinator(
             return SelfDevelopmentApplyResult.InvalidProposalSnapshot
         }
 
-        val action = ToolAction(
-            actionId = ACTION_ID,
-            capability = ToolCapability.WRITE_FILES,
-            risk = ToolRisk.SENSITIVE,
-            description = "تطبيق مقترح تطوير وافق عليه المستخدم بعد إعادة فحص المصدر والنسخ الاحتياطي"
-        )
+        val action = NoidUserToolActions.SELF_DEVELOPMENT_APPLY
 
         val execution = try {
             tools.executeUserAction(
@@ -131,17 +126,18 @@ class SelfDevelopmentApplyCoordinator(
                     )
                 }
 
-                val writtenContent = withContext(Dispatchers.IO) {
-                    files.readText(initialSelection.uri, proposal.relativePath)
+                val writtenContent = try {
+                    withContext(Dispatchers.IO) {
+                        files.readText(initialSelection.uri, proposal.relativePath)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    rollbackOrFail(initialSelection.uri, backup)
+                    throw ApplyVerificationException()
                 }
                 if (SelfDevelopmentProposalRepository.sha256(writtenContent) != proposal.proposedSha256) {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            files.restoreBackup(initialSelection.uri, backup)
-                        }
-                    } catch (rollbackFailure: Exception) {
-                        throw RollbackFailedException(rollbackFailure)
-                    }
+                    rollbackOrFail(initialSelection.uri, backup)
                     throw ApplyVerificationException()
                 }
                 backup
@@ -201,6 +197,19 @@ class SelfDevelopmentApplyCoordinator(
         }
     }
 
+    private suspend fun rollbackOrFail(
+        rootTreeUri: Uri,
+        backup: ProjectFileBackup
+    ) {
+        try {
+            withContext(Dispatchers.IO) {
+                files.restoreBackup(rootTreeUri, backup)
+            }
+        } catch (rollbackFailure: Exception) {
+            throw RollbackFailedException(rollbackFailure)
+        }
+    }
+
     private fun snapshotHashesAreValid(proposal: SelfDevelopmentProposal): Boolean =
         SelfDevelopmentProposalRepository.sha256(proposal.originalContent) == proposal.originalSha256 &&
             SelfDevelopmentProposalRepository.sha256(proposal.proposedContent) == proposal.proposedSha256 &&
@@ -242,7 +251,6 @@ class SelfDevelopmentApplyCoordinator(
     private class RollbackFailedException(cause: Throwable) : IOException(cause)
 
     private companion object {
-        const val ACTION_ID = "self-development-apply-approved-proposal"
         val SHA256_PATTERN = Regex("[0-9a-f]{64}")
     }
 }
