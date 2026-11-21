@@ -127,6 +127,14 @@ jobs:
           gradle-version: "8.14.4"
       - name: Run unit tests
         run: gradle testDebugUnitTest --stacktrace
+      - name: Upload Android JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-junit-reports
+          path: app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: warn
+          retention-days: 3
 
   arabic-tts-scorecard-tests:
     name: Arabic TTS audition scorecard tests
