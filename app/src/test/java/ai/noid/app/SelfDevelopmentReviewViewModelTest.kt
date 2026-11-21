@@ -18,11 +18,12 @@ import org.robolectric.annotation.LooperMode
 @Config(sdk = [35])
 @LooperMode(LooperMode.Mode.PAUSED)
 class SelfDevelopmentReviewViewModelTest {
+    private val testTreeUri = "content://com.example.documents/tree/project"
     @Test
     fun approvalChangesOnlyProposalStatusAndExplainsThatNoFileWasApplied() {
         val dao = FakeProposalDao()
         val repository = SelfDevelopmentProposalRepository(dao)
-        val id = runSuspend { repository.propose("تعديل", "سبب", "src/A.kt", "old", "new") }
+        val id = runSuspend { repository.propose("تعديل", "سبب", "src/A.kt", "old", "new", testTreeUri) }
         val viewModel = SelfDevelopmentReviewViewModel(repository)
         idleMainLooper()
 
@@ -40,7 +41,7 @@ class SelfDevelopmentReviewViewModelTest {
     fun rejectionAndFailureAreReportedWithoutExposingInternalDetails() {
         val dao = FakeProposalDao()
         val repository = SelfDevelopmentProposalRepository(dao)
-        val id = runSuspend { repository.propose("تعديل", "سبب", "src/A.kt", "old", "new") }
+        val id = runSuspend { repository.propose("تعديل", "سبب", "src/A.kt", "old", "new", testTreeUri) }
         val viewModel = SelfDevelopmentReviewViewModel(repository)
         idleMainLooper()
 
