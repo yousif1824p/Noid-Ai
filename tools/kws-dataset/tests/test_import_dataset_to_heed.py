@@ -48,7 +48,9 @@ class HeedDatasetImportTest(unittest.TestCase):
             else:
                 split, speaker = "train", f"train{i % 4}"
             self.add(speaker, split, "positive", f"positive/{i}.wav")
-        self.add("neg-train", "train", "negative", "negative/train.wav", 21600)
+        # Preserve eight total negative hours while covering all required splits.
+        self.add("neg-train", "train", "negative", "negative/train.wav", 21599)
+        self.add("neg-cal", "calibration", "negative", "negative/cal.wav", 1)
         self.add("neg-held-a", "final_test", "negative", "negative/held-a.wav", 3600)
         self.add("neg-held-b", "final_test", "negative", "negative/held-b.wav", 3600)
         manifest = self.dataset / "manifest.csv"
