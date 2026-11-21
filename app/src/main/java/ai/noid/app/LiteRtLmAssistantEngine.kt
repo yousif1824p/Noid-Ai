@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 
 /**
  * On-device text inference using Google's LiteRT-LM Android Kotlin API.
@@ -42,6 +43,7 @@ class LiteRtLmAssistantEngine(
 
     // Accessed only from runtimeDispatcher.
     private var runtime: Engine? = null
+    private val runtimeAccessGate = ModelRuntimeAccessGate()
 
     suspend fun importAndLoadModel(uri: Uri): String = withContext(runtimeDispatcher) {
         check(uri.scheme == "content") { "اختر ملف نموذج من منتقي ملفات Android." }
@@ -119,7 +121,9 @@ class LiteRtLmAssistantEngine(
 
         try {
             val modelSha256 = ModelFileIntegrity.sha256(modelFile)
-            initializeModelOnDispatcher(modelFile, displayName)
+            runtimeAccessGate.withAccess {
+                initializeModelOnDispatcher(modelFile, displayName)
+            }
             appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_ACTIVE_MODEL_FILE, modelFile.name)
@@ -184,7 +188,9 @@ class LiteRtLmAssistantEngine(
             if (storedSha256 == null) {
                 preferences.edit().putString(KEY_ACTIVE_MODEL_SHA256, actualSha256).apply()
             }
-            initializeModelOnDispatcher(modelFile, displayName)
+            runtimeAccessGate.withAccess {
+                initializeModelOnDispatcher(modelFile, displayName)
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
@@ -224,6 +230,7 @@ class LiteRtLmAssistantEngine(
     }
 
     override fun generate(request: AssistantTurnRequest): Flow<AssistantStreamEvent> = flow {
+        runtimeAccessGate.withAccess {
         val loadedEngine = runtime
             ?: throw IllegalStateException("لم يتم تحميل نموذج LiteRT-LM بعد.")
         val lastUserMessage = request.conversation.lastOrNull { it.fromUser }
@@ -293,19 +300,25 @@ class LiteRtLmAssistantEngine(
             }
         }
         emit(AssistantStreamEvent.Completed)
+        }
     }.flowOn(runtimeDispatcher)
 
     override suspend fun close() {
+        // The holder is process-scoped; keep its dispatcher reusable so a later
+        // restore/import can reactivate the same instance after an explicit close.
         withContext(runtimeDispatcher) {
-            closeRuntimeOnDispatcher()
+            runtimeAccessGate.withAccess { closeRuntimeOnDispatcher() }
         }
-        runtimeDispatcher.close()
     }
 
     private fun closeRuntimeOnDispatcher() {
-        runtime?.close()
+        val active = runtime
         runtime = null
-        mutableStatus.value = AssistantEngineStatus.NotConfigured
+        try {
+            active?.close()
+        } finally {
+            mutableStatus.value = AssistantEngineStatus.NotConfigured
+        }
     }
 
     private fun queryModelMetadata(uri: Uri): Pair<String, Long?> {
