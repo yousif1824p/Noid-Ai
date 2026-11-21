@@ -118,11 +118,13 @@ class LiteRtLmAssistantEngine(
         }
 
         try {
+            val modelSha256 = ModelFileIntegrity.sha256(modelFile)
             initializeModelOnDispatcher(modelFile, displayName)
             appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putString(KEY_ACTIVE_MODEL_FILE, modelFile.name)
                 .putString(KEY_ACTIVE_MODEL_NAME, displayName)
+                .putString(KEY_ACTIVE_MODEL_SHA256, modelSha256)
                 .apply()
             modelsDirectory.listFiles()
                 ?.filter { it.name.startsWith("model-") && it != modelFile }
@@ -167,6 +169,21 @@ class LiteRtLmAssistantEngine(
             return@withContext
         }
         try {
+            val actualSha256 = ModelFileIntegrity.sha256(modelFile)
+            val storedSha256 = preferences.getString(KEY_ACTIVE_MODEL_SHA256, null)
+            if (storedSha256 != null &&
+                (!ModelFileIntegrity.isValidSha256(storedSha256) ||
+                    !actualSha256.equals(storedSha256, ignoreCase = true))
+            ) {
+                mutableStatus.value = AssistantEngineStatus.Unavailable(
+                    "تغيرت بصمة ملف النموذج المحفوظ؛ أعد استيراده قبل الاستخدام."
+                )
+                return@withContext
+            }
+            // One-time migration for models imported by versions that predate persisted digests.
+            if (storedSha256 == null) {
+                preferences.edit().putString(KEY_ACTIVE_MODEL_SHA256, actualSha256).apply()
+            }
             initializeModelOnDispatcher(modelFile, displayName)
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -326,6 +343,7 @@ class LiteRtLmAssistantEngine(
         private const val PREFERENCES_NAME = "noid_model_runtime"
         private const val KEY_ACTIVE_MODEL_FILE = "active_model_file"
         private const val KEY_ACTIVE_MODEL_NAME = "active_model_name"
+        private const val KEY_ACTIVE_MODEL_SHA256 = "active_model_sha256"
     }
 }
 
