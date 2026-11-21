@@ -84,7 +84,16 @@ def _validate_payload(payload: object) -> tuple[str, list[dict[str, str]]] | Non
 
 def create_app(engine: TextEngine | None = None, token: str | None = None) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    backend = engine or UnconfiguredEngine()
+    if engine is not None:
+        backend = engine
+    else:
+        ollama_url = os.environ.get("NOID_OLLAMA_BASE_URL", "")
+        ollama_model = os.environ.get("NOID_OLLAMA_MODEL", "")
+        if ollama_url and ollama_model:
+            from .ollama import OllamaTextEngine
+            backend = OllamaTextEngine(ollama_url, ollama_model)
+        else:
+            backend = UnconfiguredEngine()
     expected_token = token if token is not None else os.environ.get("NOID_API_TOKEN", "")
     active: dict[str, ActiveRequest] = {}
     active_lock = asyncio.Lock()
