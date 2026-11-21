@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate anonymous NOID Arabic TTS audition ratings; never auto-approve a voice."""
+"""Validate anonymous NOID MSA TTS audition ratings; never auto-approve a voice."""
 from __future__ import annotations
 
 import argparse
@@ -12,12 +12,11 @@ from collections import defaultdict
 from pathlib import Path
 
 COLUMNS = (
-    "candidate_id", "dialect", "listener_code", "arabic_authenticity",
-    "iraqi_fidelity", "intelligibility", "gender_ambiguity",
+    "candidate_id", "listener_code", "arabic_authenticity",
+    "msa_pronunciation", "intelligibility", "gender_ambiguity",
     "synthetic_identity", "stability",
 )
-DIALECTS = {"msa", "iraqi"}
-SCORES = COLUMNS[3:]
+SCORES = COLUMNS[2:]
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_RATINGS = 10_000
 MAX_CANDIDATE_ID_LENGTH = 80
@@ -32,8 +31,8 @@ def _safe_identifier(value: str, maximum: int) -> bool:
 
 def validate(path: Path) -> dict:
     errors: list[str] = []
-    grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    seen: set[tuple[str, str, str]] = set()
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    seen: set[tuple[str, str]] = set()
 
     try:
         if path.stat().st_size > MAX_FILE_BYTES:
@@ -66,7 +65,6 @@ def validate(path: Path) -> dict:
                     errors.append(f"Line {line}: too few CSV fields")
                     continue
                 candidate = (row.get("candidate_id") or "").strip()
-                dialect = (row.get("dialect") or "").strip().lower()
                 listener = (row.get("listener_code") or "").strip()
                 if not _safe_identifier(candidate, MAX_CANDIDATE_ID_LENGTH):
                     errors.append(f"Line {line}: candidate_id is empty, too long, or contains control/format characters")
@@ -74,12 +72,9 @@ def validate(path: Path) -> dict:
                 if not _safe_identifier(listener, MAX_LISTENER_CODE_LENGTH):
                     errors.append(f"Line {line}: listener_code is empty, too long, or contains control/format characters")
                     continue
-                if dialect not in DIALECTS:
-                    errors.append(f"Line {line}: dialect must be msa or iraqi")
-                    continue
-                key = (candidate, dialect, listener)
+                key = (candidate, listener)
                 if key in seen:
-                    errors.append(f"Line {line}: duplicate listener rating for {candidate}/{dialect}/{listener}")
+                    errors.append(f"Line {line}: duplicate listener rating for {candidate}/{listener}")
                     continue
                 seen.add(key)
                 values = {}
@@ -95,15 +90,14 @@ def validate(path: Path) -> dict:
                         continue
                     values[field] = score
                 if len(values) == len(SCORES):
-                    grouped[(candidate, dialect)].append(values)
+                    grouped[candidate].append(values)
     except (OSError, csv.Error, UnicodeError) as exc:
         return {"valid": False, "errors": [f"Cannot read valid CSV: {exc}"], "groups": []}
 
     summaries = []
-    for (candidate, dialect), ratings in sorted(grouped.items()):
+    for candidate, ratings in sorted(grouped.items()):
         summaries.append({
             "candidate_id": candidate,
-            "dialect": dialect,
             "listener_count": len(ratings),
             "median_scores": {
                 field: statistics.median(item[field] for item in ratings)
@@ -118,7 +112,7 @@ def validate(path: Path) -> dict:
         "valid": not errors,
         "errors": errors,
         "groups": summaries,
-        "notice": "Ratings are descriptive only; this tool never selects or approves a voice.",
+        "notice": "MSA ratings are descriptive only; this tool never selects or approves a voice.",
     }
 
 
