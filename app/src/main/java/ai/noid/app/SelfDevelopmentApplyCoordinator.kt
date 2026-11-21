@@ -63,6 +63,10 @@ class SelfDevelopmentApplyCoordinator(
         if (proposal.status != SelfDevelopmentProposal.STATUS_APPROVED) {
             return SelfDevelopmentApplyResult.NotApproved
         }
+        // A matching path and hash in another project is not sufficient consent.
+        if (proposal.projectTreeUri != initialSelection.uri.toString()) {
+            return SelfDevelopmentApplyResult.ProjectSelectionChanged
+        }
         if (!proposals.claimApprovedForApply(proposalId)) {
             return SelfDevelopmentApplyResult.AlreadyProcessing
         }
