@@ -71,7 +71,8 @@ class SelfDevelopmentProposalToolAdapter(
             relativePath = path,
             originalContent = original,
             proposedContent = request.arguments[ARG_PROPOSED_CONTENT]
-                ?: throw IOException("المحتوى المقترح مفقود.")
+                ?: throw IOException("المحتوى المقترح مفقود."),
+            projectTreeUri = selection.uri.toString()
         )
         return "حُفظ مقترح التطوير رقم $proposalId للملف $path. لم يُعدّل الملف الأصلي؛ راجع المقترح في شاشة مراجعة تطوير NOID."
     }
