@@ -2,6 +2,7 @@ package ai.noid.app
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -54,7 +55,7 @@ class LearningRepositoryTest {
         private var nextId = 1L
 
         override fun observePending(): Flow<List<LearningRecord>> =
-            MutableStateFlow(records.value.filter { it.status == LearningRecord.STATUS_PENDING })
+            records.map { list -> list.filter { it.status == LearningRecord.STATUS_PENDING } }
 
         override suspend fun getApprovedRecent(limit: Int): List<LearningRecord> =
             records.value.filter { it.status == LearningRecord.STATUS_APPROVED }
