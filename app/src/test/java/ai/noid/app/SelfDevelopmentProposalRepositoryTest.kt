@@ -57,15 +57,29 @@ class SelfDevelopmentProposalRepositoryTest {
     @Test
     fun rejectsUnsafePathsUnsupportedFilesUnchangedContentAndOversizedInput() = runBlocking {
         val repository = SelfDevelopmentProposalRepository(FakeDao())
-        fun proposal(path: String, before: String = "a", after: String = "b") =
-            runBlocking { repository.propose("title", "reason", path, before, after) }
 
-        assertThrows(IllegalArgumentException::class.java) { proposal("../secret.kt") }
-        assertThrows(IllegalArgumentException::class.java) { proposal("/absolute.kt") }
-        assertThrows(IllegalArgumentException::class.java) { proposal("assets/model.bin") }
-        assertThrows(IllegalArgumentException::class.java) { proposal("src/A.kt", "same", "same") }
         assertThrows(IllegalArgumentException::class.java) {
-            proposal("src/A.kt", "a", "x".repeat(SelfDevelopmentProposalRepository.MAX_CONTENT_BYTES + 1))
+            runBlocking { repository.propose("title", "reason", "../secret.kt", "a", "b") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.propose("title", "reason", "/absolute.kt", "a", "b") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.propose("title", "reason", "assets/model.bin", "a", "b") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.propose("title", "reason", "src/A.kt", "same", "same") }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                repository.propose(
+                    "title",
+                    "reason",
+                    "src/A.kt",
+                    "a",
+                    "x".repeat(SelfDevelopmentProposalRepository.MAX_CONTENT_BYTES + 1)
+                )
+            }
         }
     }
 
