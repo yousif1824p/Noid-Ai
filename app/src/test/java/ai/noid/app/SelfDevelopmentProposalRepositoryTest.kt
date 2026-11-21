@@ -120,6 +120,35 @@ class SelfDevelopmentProposalRepositoryTest {
         override suspend fun rejectPending(id: Long, reviewedAt: Long): Int =
             transition(id, SelfDevelopmentProposal.STATUS_REJECTED, reviewedAt)
 
+        override suspend fun claimApprovedForApply(id: Long, reviewedAt: Long): Int =
+            transitionFrom(id, SelfDevelopmentProposal.STATUS_APPROVED, SelfDevelopmentProposal.STATUS_APPLYING, reviewedAt)
+
+        override suspend fun markApplied(id: Long, reviewedAt: Long): Int =
+            transitionFrom(id, SelfDevelopmentProposal.STATUS_APPLYING, SelfDevelopmentProposal.STATUS_APPLIED, reviewedAt)
+
+        override suspend fun markStale(id: Long, reviewedAt: Long): Int =
+            transitionFrom(id, SelfDevelopmentProposal.STATUS_APPLYING, SelfDevelopmentProposal.STATUS_STALE, reviewedAt)
+
+        override suspend fun markApplyFailed(id: Long, reviewedAt: Long): Int =
+            transitionFrom(id, SelfDevelopmentProposal.STATUS_APPLYING, SelfDevelopmentProposal.STATUS_APPLY_FAILED, reviewedAt)
+
+        override suspend fun markApplyInterrupted(id: Long, reviewedAt: Long): Int =
+            transitionFrom(id, SelfDevelopmentProposal.STATUS_APPLYING, SelfDevelopmentProposal.STATUS_APPLY_INTERRUPTED, reviewedAt)
+
+        override suspend fun releaseApplyClaim(id: Long): Int =
+            transitionFrom(id, SelfDevelopmentProposal.STATUS_APPLYING, SelfDevelopmentProposal.STATUS_APPROVED, null)
+
+        private fun transitionFrom(id: Long, from: String, to: String, reviewedAt: Long?): Int {
+            var changed = 0
+            rows.value = rows.value.map { row ->
+                if (row.id == id && row.status == from) {
+                    changed++
+                    row.copy(status = to, reviewedAt = reviewedAt ?: row.reviewedAt)
+                } else row
+            }
+            return changed
+        }
+
         private fun transition(id: Long, status: String, reviewedAt: Long): Int {
             var changed = 0
             rows.value = rows.value.map { row ->
