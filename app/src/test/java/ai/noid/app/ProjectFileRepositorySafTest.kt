@@ -1,14 +1,11 @@
 package ai.noid.app
 
-import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
-import android.net.Uri
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.DocumentsProvider
-import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import java.nio.file.Files
 import org.junit.After
@@ -17,9 +14,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowContentResolver
-import org.robolectric.RuntimeEnvironment
 
 /**
  * Exercises ProjectFileRepository through Android's DocumentsProvider/ContentResolver
@@ -62,7 +59,7 @@ class ProjectFileRepositorySafTest {
     }
 }
 
-/** Minimal in-memory-tree DocumentsProvider backed by a temporary host directory. */
+/** Minimal DocumentsProvider backed by a temporary host directory. */
 class TestDocumentsProvider : DocumentsProvider() {
     override fun onCreate(): Boolean = true
 
@@ -92,8 +89,7 @@ class TestDocumentsProvider : DocumentsProvider() {
         val columns = projection ?: DOCUMENT_COLUMNS
         return MatrixCursor(columns).apply {
             parent.listFiles().orEmpty().forEach { child ->
-                val id = idFor(child)
-                addDocumentRow(this, columns, id, child)
+                addDocumentRow(this, columns, idFor(child), child)
             }
         }
     }
@@ -103,10 +99,11 @@ class TestDocumentsProvider : DocumentsProvider() {
         mode: String,
         signal: CancellationSignal?
     ): ParcelFileDescriptor {
-        val flags = when {
-            mode.contains('w') -> ParcelFileDescriptor.MODE_WRITE_ONLY or
+        val flags = if (mode.contains('w')) {
+            ParcelFileDescriptor.MODE_WRITE_ONLY or
                 ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_TRUNCATE
-            else -> ParcelFileDescriptor.MODE_READ_ONLY
+        } else {
+            ParcelFileDescriptor.MODE_READ_ONLY
         }
         return ParcelFileDescriptor.open(fileFor(documentId), flags)
     }
@@ -116,8 +113,7 @@ class TestDocumentsProvider : DocumentsProvider() {
         mimeType: String,
         displayName: String
     ): String {
-        val parent = fileFor(parentDocumentId)
-        val created = File(parent, displayName)
+        val created = File(fileFor(parentDocumentId), displayName)
         check(created.createNewFile()) { "Document already exists" }
         return idFor(created)
     }
@@ -135,8 +131,9 @@ class TestDocumentsProvider : DocumentsProvider() {
 
     private fun documentCursor(documentId: String, projection: Array<out String>?): Cursor {
         val columns = projection ?: DOCUMENT_COLUMNS
-        val file = fileFor(documentId)
-        return MatrixCursor(columns).apply { addDocumentRow(this, columns, documentId, file) }
+        return MatrixCursor(columns).apply {
+            addDocumentRow(this, columns, documentId, fileFor(documentId))
+        }
     }
 
     private fun addDocumentRow(
