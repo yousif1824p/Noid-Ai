@@ -1,5 +1,8 @@
 # Development Roadmap
 
+## Deferred scope — voice features
+Voice features are intentionally retained as optional future work and are not part of the active development priority. Do not implement, integrate, train, or expand wake-word detection, microphone capture, speech-to-text, text-to-speech, or voice playback unless the user explicitly reactivates this scope. Existing contracts, screens, policies, tests, and documentation may remain in the repository; their presence must not be represented as working voice functionality. Prioritize the text-first assistant, model/runtime reliability, memory, reasoning, planning, project tools, and security workflows.
+
 ## Stage 0 — repository foundation
 - [x] Establish project purpose and safety boundaries.
 - [x] Record initial architecture decisions.
