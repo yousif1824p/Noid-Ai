@@ -41,6 +41,9 @@ internal class WakeWordStreamingFeaturePipeline(
         require(samples.all(Float::isFinite)) {
             "Audio contains non-finite samples"
         }
+        require(samples.all { it in NORMALIZED_PCM_RANGE }) {
+            "Audio samples must be normalized to the [-1, 1] range"
+        }
 
         // Filter each new sample once. The SOS states survive chunk boundaries.
         val highPassed = highPass.process(samples)
@@ -81,5 +84,6 @@ internal class WakeWordStreamingFeaturePipeline(
 
     companion object {
         const val MAX_CHUNK_SAMPLES = 4_800
+        private val NORMALIZED_PCM_RANGE = -1f..1f
     }
 }
