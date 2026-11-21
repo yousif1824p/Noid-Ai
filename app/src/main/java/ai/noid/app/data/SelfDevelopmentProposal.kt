@@ -29,5 +29,10 @@ data class SelfDevelopmentProposal(
         const val STATUS_PENDING_REVIEW = "PENDING_REVIEW"
         const val STATUS_APPROVED = "APPROVED"
         const val STATUS_REJECTED = "REJECTED"
+        const val STATUS_APPLYING = "APPLYING"
+        const val STATUS_APPLIED = "APPLIED"
+        const val STATUS_STALE = "STALE"
+        const val STATUS_APPLY_FAILED = "APPLY_FAILED"
+        const val STATUS_APPLY_INTERRUPTED = "APPLY_INTERRUPTED"
     }
 }
