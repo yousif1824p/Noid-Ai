@@ -28,6 +28,42 @@ class MemoryViewModel(
     private var searchJob: Job? = null
     private var searchRequestId = 0L
 
+    private val _operationMessage = MutableStateFlow<String?>(null)
+    val operationMessage: StateFlow<String?> = _operationMessage.asStateFlow()
+
+    private val _isOperating = MutableStateFlow(false)
+    val isOperating: StateFlow<Boolean> = _isOperating.asStateFlow()
+
+    private var operationJob: Job? = null
+
+    fun clearOperationMessage() {
+        _operationMessage.value = null
+    }
+
+    private fun runMemoryOperation(
+        successMessage: String,
+        errorMessage: String,
+        operation: suspend () -> Unit
+    ) {
+        if (operationJob?.isActive == true) return
+
+        operationJob = viewModelScope.launch {
+            _isOperating.value = true
+            _operationMessage.value = null
+            try {
+                operation()
+                _operationMessage.value = successMessage
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Do not expose database paths, SQL text, or provider details in the UI.
+                _operationMessage.value = errorMessage
+            } finally {
+                _isOperating.value = false
+            }
+        }
+    }
+
     fun searchMemories(query: String) {
         val normalized = query.trim().take(MemoryRepository.MAX_SEARCH_QUERY_LENGTH)
         val requestId = ++searchRequestId
@@ -64,19 +100,28 @@ class MemoryViewModel(
     }
 
     fun saveApprovedMemory(title: String, content: String, source: String) {
-        viewModelScope.launch {
+        runMemoryOperation(
+            successMessage = "تم حفظ المعلومة في الذاكرة المحلية.",
+            errorMessage = "تعذر حفظ المعلومة. لم يتم تأكيد نجاح العملية."
+        ) {
             repository.saveApprovedMemory(title, content, source)
         }
     }
 
     fun updateMemory(id: Long, title: String, content: String, source: String) {
-        viewModelScope.launch {
+        runMemoryOperation(
+            successMessage = "تم تحديث الذاكرة المحلية.",
+            errorMessage = "تعذر تحديث الذاكرة. لم يتم تأكيد نجاح العملية."
+        ) {
             repository.updateMemory(id, title, content, source)
         }
     }
 
     fun deleteMemory(id: Long) {
-        viewModelScope.launch {
+        runMemoryOperation(
+            successMessage = "تم حذف المعلومة من الذاكرة المحلية.",
+            errorMessage = "تعذر حذف المعلومة. لم يتم تأكيد نجاح العملية."
+        ) {
             repository.deleteMemory(id)
         }
     }
