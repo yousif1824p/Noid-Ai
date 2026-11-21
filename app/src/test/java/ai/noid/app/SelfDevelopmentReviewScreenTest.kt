@@ -1,6 +1,7 @@
 package ai.noid.app
 
 import androidx.compose.material3.MaterialTheme
+import android.os.Looper
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -13,6 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -52,6 +54,8 @@ class SelfDevelopmentReviewScreenTest {
         ).fetchSemanticsNode()
         composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
+            // Drain ViewModel work scheduled on the main looper under Robolectric.
+            shadowOf(Looper.getMainLooper()).idle()
             dao.rows.value.singleOrNull()?.status == SelfDevelopmentProposal.STATUS_APPROVED
         }
         assertEquals(SelfDevelopmentProposal.STATUS_APPROVED, dao.rows.value.single().status)
