@@ -7,6 +7,7 @@ import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.DocumentsProvider
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -31,6 +32,7 @@ class ProjectFileRepositorySafTest {
 
     @After
     fun tearDown() {
+        TestDocumentsProvider.failNextWrite = false
         root.deleteRecursively()
         backups.deleteRecursively()
     }
@@ -55,6 +57,26 @@ class ProjectFileRepositorySafTest {
         assertEquals("original", repository.readText(treeUri, "notes.txt"))
         assertEquals("updated", restoreBackup.backupFile.readText(Charsets.UTF_8))
         assertTrue(repository.deleteBackup(backup))
+        assertEquals(1, repository.listBackups("notes.txt").size)
+    }
+
+    @Test
+    fun providerWriteFailureRestoresOriginalAndRetainsRecoveryBackup() {
+        File(root, "notes.txt").writeText("original", Charsets.UTF_8)
+        TestDocumentsProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        val repository = ProjectFileRepository(context, backups)
+
+        TestDocumentsProvider.failNextWrite = true
+        try {
+            repository.writeText(treeUri, "notes.txt", "must-not-remain")
+            throw AssertionError("Expected provider write failure")
+        } catch (expected: IOException) {
+            assertTrue(expected.message.orEmpty().contains("احتُفظ بالنسخة الاحتياطية"))
+        }
+
+        assertEquals("original", repository.readText(treeUri, "notes.txt"))
         assertEquals(1, repository.listBackups("notes.txt").size)
     }
 }
@@ -99,6 +121,10 @@ class TestDocumentsProvider : DocumentsProvider() {
         mode: String,
         signal: CancellationSignal?
     ): ParcelFileDescriptor {
+        if (mode.contains('w') && failNextWrite) {
+            failNextWrite = false
+            throw IOException("Injected provider write failure")
+        }
         val flags = if (mode.contains('w')) {
             ParcelFileDescriptor.MODE_WRITE_ONLY or
                 ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_TRUNCATE
@@ -172,6 +198,7 @@ class TestDocumentsProvider : DocumentsProvider() {
     companion object {
         const val AUTHORITY = "ai.noid.test.documents"
         lateinit var backingRoot: File
+        @Volatile var failNextWrite: Boolean = false
 
         private val ROOT_COLUMNS = arrayOf(
             DocumentsContract.Root.COLUMN_ROOT_ID,
