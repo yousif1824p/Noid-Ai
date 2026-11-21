@@ -35,7 +35,7 @@ Voice features are intentionally retained as optional future work and are not pa
 - [ ] Verify native runtime compilation and execute on the target phone with a compatible model; do not claim device readiness before this test.
 - [ ] Evaluate on-device inference on the target phone before selecting a model and tune CPU/GPU only from measured compatibility.
 
-## Stage 3 — assistant capabilities
+## User-reviewed learning foundation\n- [x] Add a dedicated Room learning-record table with pending, approved, and rejected states and a non-destructive v3-to-v4 migration.\n- [x] Add bounded proposal, approval, rejection, search, and approved-context repository operations with unit and Room DAO tests.\n- [x] Add a learning screen; proposals remain inert until user approval, and only approved bounded records enter local text-model context. This is retrieval-based knowledge curation, not model-weight training.\n\n## Stage 3 — assistant capabilities
 - [x] Add initial conversation orchestration, memory/context handoff, stream completion validation, and cancellation handling.
 - [x] Add the initial tool authorization policy and Room audit-event foundation.
 - [x] Add a shared tool execution coordinator that enforces authorization, requires a persisted pre-execution audit event, records completion/failure, and propagates cancellation; concrete tool adapters still require integration.
