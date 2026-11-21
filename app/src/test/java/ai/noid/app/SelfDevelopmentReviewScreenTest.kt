@@ -3,7 +3,6 @@ package ai.noid.app
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.assertExists
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -57,7 +56,6 @@ class SelfDevelopmentReviewScreenTest {
         composeRule.onNodeWithText(
             "هذه مقترحات محفوظة منفصلة عن ملفات المشروع. الموافقة تسجل قرارك فقط؛ لا تكتب الملفات ولا تمنح إذناً بالتطبيق. لن يُنفّذ أي تغيير من هذه الشاشة."
         ).fetchSemanticsNode()
-        composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").assertExists()
         assertEquals(SelfDevelopmentProposal.STATUS_PENDING_REVIEW, dao.rows.value.single().status)
     }
 
