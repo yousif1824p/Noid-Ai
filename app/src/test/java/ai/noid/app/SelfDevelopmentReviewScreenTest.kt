@@ -51,7 +51,9 @@ class SelfDevelopmentReviewScreenTest {
             "هذه مقترحات محفوظة منفصلة عن ملفات المشروع. الموافقة تسجل قرارك فقط؛ لا تكتب الملفات ولا تمنح إذناً بالتطبيق. لن يُنفّذ أي تغيير من هذه الشاشة."
         ).fetchSemanticsNode()
         composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
-        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            dao.rows.value.singleOrNull()?.status == SelfDevelopmentProposal.STATUS_APPROVED
+        }
         assertEquals(SelfDevelopmentProposal.STATUS_APPROVED, dao.rows.value.single().status)
     }
 
