@@ -29,6 +29,17 @@ class ProjectSecurityScannerTest {
         assertTrue(finding.evidence.contains("تم حجب بيانات الاعتماد"))
     }
 
+    @Test fun detectsBearerCredentialsInCommonKotlinHeaderCallsWithoutEchoingTheToken() {
+        val token = "eyJhbGciOiJIUzI1NiJ9.kotlin-payload.signature"
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/src/Network.kt", """request.header("Authorization", "Bearer $token")"""))
+        )
+        val finding = findings.single { it.id.startsWith("source.bearer_token") }
+        assertEquals(ApkFindingSeverity.HIGH, finding.severity)
+        assertFalse(finding.evidence.contains(token))
+        assertTrue(finding.evidence.contains("تم حجب بيانات الاعتماد"))
+    }
+
     @Test fun detectsPrivateKeyHeadersWithoutEchoingKeyMaterial() {
         val keyBody = "PRIVATE-KEY-BODY-DO-NOT-LOG"
         val findings = ProjectSecurityScanner.scan(
