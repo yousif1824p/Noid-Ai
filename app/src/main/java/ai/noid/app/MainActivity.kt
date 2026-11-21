@@ -120,6 +120,13 @@ class MainActivity : ComponentActivity() {
                 projectFileRepository
             )
         )
+        val selfDevelopmentApplyCoordinator = SelfDevelopmentApplyCoordinator(
+            applicationContext,
+            selectedProjectTree,
+            projectFileRepository,
+            selfDevelopmentRepository,
+            toolRegistry
+        )
         val engine = NoidEngineHolder.get(applicationContext)
         val visionEngine = NoidVisionEngineHolder.get(applicationContext)
         lifecycleScope.launch {
@@ -152,7 +159,11 @@ class MainActivity : ComponentActivity() {
         )[LearningViewModel::class.java]
         val selfDevelopmentReviewViewModel = ViewModelProvider(
             this,
-            SelfDevelopmentReviewViewModelFactory(selfDevelopmentRepository)
+            SelfDevelopmentReviewViewModelFactory(
+                selfDevelopmentRepository,
+                selfDevelopmentApplyCoordinator,
+                selectedProjectTree
+            )
         )[SelfDevelopmentReviewViewModel::class.java]
 
         setContent {
