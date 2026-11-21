@@ -10,8 +10,10 @@ class Lines(httpx.AsyncByteStream):
     def __init__(self, body: bytes):
         self.body = body
 
-    async def __aiter__(self):
-        yield self.body
+    def __aiter__(self):
+        async def iterator():
+            yield self.body
+        return iterator()
 
     async def aclose(self):
         return None
