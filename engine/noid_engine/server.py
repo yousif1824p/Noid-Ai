@@ -149,40 +149,21 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
                     "protocol_version": PROTOCOL_VERSION,
                     "sequence": sequence,
                 })
-                try:
-                    async for fragment in backend.stream(messages):
-                        if state.cancel.is_set():
-                            sequence += 1
-                            terminal = True
-                            yield _sse("error", {
-                                "request_id": request_id,
-                                "protocol_version": PROTOCOL_VERSION,
-                                "sequence": sequence,
-                                "error_code": "cancelled",
-                            })
-                            return
-                        if not isinstance(fragment, str) or not fragment:
-                            continue
-                        output_chars += len(fragment)
-                        if output_chars > MAX_OUTPUT_CHARS:
-                            sequence += 1
-                            terminal = True
-                            yield _sse("error", {
-                                "request_id": request_id,
-                                "protocol_version": PROTOCOL_VERSION,
-                                "sequence": sequence,
-                                "error_code": "output_limit",
-                            })
-                            return
-                        for offset in range(0, len(fragment), MAX_DELTA_CHARS):
-                            sequence += 1
-                            yield _sse("delta", {
-                                "request_id": request_id,
-                                "protocol_version": PROTOCOL_VERSION,
-                                "sequence": sequence,
-                                "text": fragment[offset:offset + MAX_DELTA_CHARS],
-                            })
-                    if state.cancel.is_set():
+                iterator = backend.stream(messages).__aiter__()
+                while True:
+                    next_task = asyncio.create_task(iterator.__anext__())
+                    state.task = next_task
+                    cancel_task = asyncio.create_task(state.cancel.wait())
+                    done, pending = await asyncio.wait(
+                        {next_task, cancel_task},
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    cancel_task.cancel()
+                    await asyncio.gather(cancel_task, return_exceptions=True)
+                    if cancel_task in done and state.cancel.is_set():
+                        next_task.cancel()
+                        await asyncio.gather(next_task, return_exceptions=True)
+                        state.task = None
                         sequence += 1
                         terminal = True
                         yield _sse("error", {
@@ -191,14 +172,50 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
                             "sequence": sequence,
                             "error_code": "cancelled",
                         })
-                    else:
+                        return
+                    state.task = None
+                    try:
+                        fragment = next_task.result()
+                    except StopAsyncIteration:
+                        break
+                    if not isinstance(fragment, str) or not fragment:
+                        continue
+                    output_chars += len(fragment)
+                    if output_chars > MAX_OUTPUT_CHARS:
                         sequence += 1
                         terminal = True
-                        yield _sse("completed", {
+                        yield _sse("error", {
                             "request_id": request_id,
                             "protocol_version": PROTOCOL_VERSION,
                             "sequence": sequence,
+                            "error_code": "output_limit",
                         })
+                        return
+                    for offset in range(0, len(fragment), MAX_DELTA_CHARS):
+                        sequence += 1
+                        yield _sse("delta", {
+                            "request_id": request_id,
+                            "protocol_version": PROTOCOL_VERSION,
+                            "sequence": sequence,
+                            "text": fragment[offset:offset + MAX_DELTA_CHARS],
+                        })
+                if state.cancel.is_set():
+                    sequence += 1
+                    terminal = True
+                    yield _sse("error", {
+                        "request_id": request_id,
+                        "protocol_version": PROTOCOL_VERSION,
+                        "sequence": sequence,
+                        "error_code": "cancelled",
+                    })
+                else:
+                    sequence += 1
+                    terminal = True
+                    yield _sse("completed", {
+                        "request_id": request_id,
+                        "protocol_version": PROTOCOL_VERSION,
+                        "sequence": sequence,
+                    })
                 except EngineUnavailable:
                     sequence += 1
                     terminal = True
