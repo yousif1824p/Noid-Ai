@@ -18,6 +18,7 @@ sealed interface AssistantEngineStatus {
 data class AssistantTurnRequest(
     val conversation: List<ChatMessage>,
     val approvedMemories: List<UserMemory>,
+    val approvedLessons: List<LearningRecord> = emptyList(),
     val toolProviders: List<ToolProvider> = emptyList()
 )
 
