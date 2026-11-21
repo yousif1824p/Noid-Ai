@@ -249,6 +249,11 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
             finally:
                 if not terminal and not state.cancel.is_set():
                     state.cancel.set()
+                pending_task = state.task
+                if pending_task is not None and not pending_task.done():
+                    pending_task.cancel()
+                    await asyncio.gather(pending_task, return_exceptions=True)
+                state.task = None
                 async with active_lock:
                     active.pop(request_id, None)
 
