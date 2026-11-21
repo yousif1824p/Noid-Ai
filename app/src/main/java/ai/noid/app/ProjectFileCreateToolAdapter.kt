@@ -94,6 +94,7 @@ object ProjectFileCreateRequestPolicy {
         }
         val path = arguments[ProjectFileCreateToolAdapter.ARG_PATH]
             ?: return "مسار الملف مفقود."
+        if (path != path.trim()) return "يجب أن يكون مسار الملف نسبياً ومنسقاً."
         val normalized = ProjectFilePolicy.normalizeRelativePath(path)
             ?: return "مسار الملف غير صالح."
         if (normalized != path) return "يجب أن يكون مسار الملف نسبياً ومنسقاً."

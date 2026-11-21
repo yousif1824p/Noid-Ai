@@ -54,7 +54,6 @@ class ProjectFilePolicyTest {
         assertFalse(ProjectFilePolicy.isEditableTextFile("classes.dex"))
         assertFalse(ProjectFilePolicy.isEditableTextFile("payload.apk"))
     }
-}
 
     @Test fun rejectsLeadingWhitespaceInsteadOfRedirectingToAnotherFile() {
         assertEquals(null, ProjectFilePolicy.normalizeRelativePath(" app/Main.kt"))
@@ -101,3 +100,5 @@ class ProjectFilePolicyTest {
         assertEquals(null, ProjectFilePolicy.normalizeRelativePath("app/   /Main.kt"))
     }
 
+
+}
