@@ -31,6 +31,7 @@ Voice features are intentionally retained as optional future work and are not pa
 - [x] Add a model runtime status/setup screen that clearly reports the unconfigured state without offering a fake activation path.
 - [x] Integrate the pinned LiteRT-LM Android Kotlin runtime, user-selected private model import, bounded model-file copying, background initialization, bounded chat/memory context, and streaming adapter.
 - [x] Persist a SHA-256 fingerprint for imported local models and verify it before startup restoration; add pure integrity tests. This detects post-import changes, not publisher authenticity.
+- [x] Serialize LiteRT-LM inference-session lifetime against model replacement, restoration, and close; add tests proving active conversations block replacement and cancellation releases the gate.
 - [ ] Verify native runtime compilation and execute on the target phone with a compatible model; do not claim device readiness before this test.
 - [ ] Evaluate on-device inference on the target phone before selecting a model and tune CPU/GPU only from measured compatibility.
 
