@@ -45,6 +45,26 @@ For NOID:
 
 These candidates are not demonstrated ready-to-use Android LiteRT/TFLite packages. Published setups use Python/PyTorch or require an additional codec/adapter. No compatible Android runtime conversion, model package, or target-device performance result has been established. Do not download multi-gigabyte weights into the Android app or claim on-device operation without a verified conversion and benchmark.
 
+## Additional MSA candidate screening (21 November 2026)
+
+A newly reviewed MSA-focused candidate, **Fasih-TTS-V1**, is useful as a pronunciation benchmark but is **not suitable as NOID's voice identity**:
+
+- Its model card describes a single-speaker professional male news-anchor voice, fine-tuned from XTTS v2. That conflicts with NOID's required gender-ambiguous synthetic identity.
+- It uses precomputed speaker latents, so the published model has a fixed human-coded timbre rather than a controllable neutral synthetic identity.
+- Its model is distributed under the Coqui Public Model License (non-commercial, attribution required); derivatives inherit those terms. This is more restrictive than the Apache-2.0/MIT candidates.
+- The published inference stack is Python/PyTorch with XTTS, not a verified Android/ARM64 deployment. The model card reports 24 kHz output and hardware figures that are not measurements on the target phone.
+- Decision: do not integrate or adopt its voice. It may be used only as a listening/benchmark reference if its license and intended use are respected.
+
+**Arabic-TTS-Spark** is also MSA-focused and reports 300 hours of clean Arabic data with full diacritization, but its Hugging Face card lists a fair-noncommercial-research license. Treat it as research-only; it is not a default production candidate, and its voice identity still requires listening evaluation.
+
+The SILMA open benchmark provides an MSA listening arena that includes SILMA, Omnivoice, Habibi MSA Specialized, XTTS, EGTTS, and Chatterbox. This is useful for comparative auditioning, but benchmark inclusion or rankings do not prove NOID's gender-neutral synthetic identity, license compatibility, or Android readiness.
+
+References:
+- Fasih model card and license: https://huggingface.co/NightPrince/Fasih-TTS-V1
+- Fasih source and inference pipeline: https://github.com/NightPrinceY/Fasih-TTS-V1
+- Arabic-TTS-Spark model card: https://huggingface.co/IbrahimSalah/Arabic-TTS-Spark
+- SILMA open Arabic TTS benchmark: https://silma-ai-opensource-arabic-tts-benchmark.hf.space/
+
 ## Exit criteria
 
 A candidate may move to integration only after:
