@@ -82,7 +82,14 @@ class RemoteSseStreamValidatorTest {
         }
     }
 
-    @Test fun acceptsServerOutputLimitErrorCode() {\n        val validator = RemoteSseStreamValidator("req-1")\n        validator.accept(frame("started"), envelope(1))\n        validator.accept(frame("error"), envelope(2, errorCode = "output_limit"))\n        validator.finish()\n    }\n\n    @Test fun rejectsUnknownErrorCodesAndErrorText() {
+    @Test fun acceptsServerOutputLimitErrorCode() {
+        val validator = RemoteSseStreamValidator("req-1")
+        validator.accept(frame("started"), envelope(1))
+        validator.accept(frame("error"), envelope(2, errorCode = "output_limit"))
+        validator.finish()
+    }
+
+    @Test fun rejectsUnknownErrorCodesAndErrorText() {
         val validator = RemoteSseStreamValidator("req-1")
         validator.accept(frame("started"), envelope(1))
         assertThrows(IllegalArgumentException::class.java) {
