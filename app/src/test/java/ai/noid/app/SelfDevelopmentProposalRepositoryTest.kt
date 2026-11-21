@@ -55,7 +55,7 @@ class SelfDevelopmentProposalRepositoryTest {
     }
 
     @Test
-    fun rejectsUnsafePathsUnsupportedFilesUnchangedContentAndOversizedInput() = runBlocking {
+    fun rejectsUnsafePathsUnsupportedFilesUnchangedContentAndOversizedInput(): Unit = runBlocking {
         val repository = SelfDevelopmentProposalRepository(FakeDao())
 
         assertThrows(IllegalArgumentException::class.java) {
@@ -84,7 +84,7 @@ class SelfDevelopmentProposalRepositoryTest {
     }
 
     @Test
-    fun rejectsInvalidReviewIdsAndBoundsRecentResults() = runBlocking {
+    fun rejectsInvalidReviewIdsAndBoundsRecentResults(): Unit = runBlocking {
         val dao = FakeDao()
         val repository = SelfDevelopmentProposalRepository(dao)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { repository.approve(0) } }
