@@ -54,8 +54,8 @@
 - [x] Validate JPEG/PNG/WebP container signatures and inspect decoded image bounds before pixel allocation; cap dimensions at 8,192 and decoded pixel count at 40 megapixels, with pure-policy unit tests.
 - [x] Add a voice setup/status screen that clearly reports the unconfigured state.
 - [x] Define a provider-neutral synthetic speech-output contract and bounded Arabic request policy with unit-test coverage; no TTS provider or audio playback is integrated yet.
-- [x] Review Arabic TTS candidates and record licensing, dialect, and target-device validation gates; no candidate is approved or integrated. See `docs/VOICE_TTS_CANDIDATE_REVIEW.md`.
-- [ ] Select and validate a licensed gender-ambiguous synthetic Arabic TTS voice on the target device; integrate playback only after dialect, license, resource, and listening-test gates pass.
+- [x] Review Modern Standard Arabic (MSA) TTS candidates and record licensing, listening, and target-device validation gates; Iraqi dialect support is not required, and no candidate is approved or integrated. See `docs/VOICE_TTS_CANDIDATE_REVIEW.md`.
+- [ ] Select and validate a licensed gender-ambiguous synthetic MSA TTS voice on the target device; integrate playback only after pronunciation, license, resource, and listening-test gates pass.
 - [x] Add a static launcher shortcut that opens voice setup directly without requesting microphone access or starting capture; cover route validation with unit tests.
 - [x] Add a pure voice-session gate requiring user initiation, visible app, microphone permission, foreground-service availability, and configured local KWS runtime, with unit tests.
 - [x] Add a fail-closed microphone foreground-service preflight policy with API 28/34 permission gates, visible-activity/user-gesture requirements, notification-channel readiness, and local KWS readiness tests; this is policy only, not a running service.
