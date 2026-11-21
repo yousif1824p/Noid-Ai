@@ -12,6 +12,13 @@ python tools/kws-dataset/import_dataset_to_heed.py /private/path/to/dataset /abs
 
 The importer validates structural and quantity gates, then copies only `train` rows into an empty Heed project. Calibration and final-test audio are excluded. Keep recordings and consent records outside Git.
 
+Manifest safety limits:
+- CSV manifest is limited to 8 MiB and 100,000 records.
+- Headers must match the exact ordered schema: `speaker_id,split,label,consent,path`; duplicate, missing, reordered, or extra columns are rejected.
+- CSV fields are limited to 4,096 characters; malformed quoting, invalid UTF-8, and rows with extra or missing fields are rejected.
+- Speaker identifiers are limited to 128 characters; audio paths are limited to 512 characters. Control and Unicode format characters are rejected in both.
+- Audio paths must remain inside the dataset root and may not traverse symlinks.
+
 ## Continuous-audio evaluation
 
 The evaluator measures timestamped detections exported by a separately run local detector. It does not open audio or execute a model.

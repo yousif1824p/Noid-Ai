@@ -9,6 +9,7 @@ import argparse
 import csv
 import json
 import sys
+import unicodedata
 import wave
 from collections import defaultdict
 from pathlib import Path
@@ -20,7 +21,12 @@ MIN_POSITIVE_SPEAKERS = 10
 MIN_HELD_OUT_POSITIVE_SPEAKERS = 4
 MIN_NEGATIVE_SECONDS = 8 * 60 * 60
 MIN_HELD_OUT_NEGATIVE_SECONDS = 2 * 60 * 60
-REQUIRED_COLUMNS = {"speaker_id", "split", "label", "consent", "path"}
+REQUIRED_COLUMNS = ("speaker_id", "split", "label", "consent", "path")
+MAX_MANIFEST_BYTES = 8 * 1024 * 1024
+MAX_RECORDS = 100_000
+MAX_IDENTIFIER_LENGTH = 128
+MAX_AUDIO_PATH_LENGTH = 512
+MAX_CSV_FIELD_SIZE = 4096
 
 
 class DatasetError(ValueError):
@@ -45,6 +51,17 @@ def _inside(root: Path, relative: str) -> Path:
     return resolved
 
 
+def _validate_identifier(value: str, field: str, maximum: int = MAX_IDENTIFIER_LENGTH) -> str:
+    value = value.strip()
+    if not value:
+        raise DatasetError(f"{field} is required")
+    if len(value) > maximum:
+        raise DatasetError(f"{field} exceeds {maximum} characters")
+    if any(unicodedata.category(char) in {"Cc", "Cf"} for char in value):
+        raise DatasetError(f"{field} contains control or format characters")
+    return value
+
+
 def _wav_duration(path: Path) -> float:
     try:
         with wave.open(str(path), "rb") as wav:
@@ -67,13 +84,24 @@ def validate_dataset(root: Path, manifest: Path) -> dict:
     manifest_path = manifest_path.resolve(strict=True)
     if not manifest_path.is_relative_to(root) or not manifest_path.is_file():
         raise DatasetError("manifest must be a file inside the dataset root")
+    if manifest_path.stat().st_size > MAX_MANIFEST_BYTES:
+        raise DatasetError(f"manifest exceeds {MAX_MANIFEST_BYTES} bytes")
 
-    with manifest_path.open("r", encoding="utf-8-sig", newline="") as stream:
-        reader = csv.DictReader(stream)
-        if not reader.fieldnames or not REQUIRED_COLUMNS.issubset(set(reader.fieldnames)):
-            missing = sorted(REQUIRED_COLUMNS - set(reader.fieldnames or []))
-            raise DatasetError("manifest missing required columns: " + ", ".join(missing))
-        rows = list(reader)
+    csv.field_size_limit(MAX_CSV_FIELD_SIZE)
+    try:
+        with manifest_path.open("r", encoding="utf-8-sig", newline="") as stream:
+            reader = csv.DictReader(stream, strict=True)
+            if reader.fieldnames != list(REQUIRED_COLUMNS):
+                raise DatasetError("manifest columns must exactly match: " + ", ".join(REQUIRED_COLUMNS))
+            rows = []
+            for line, row in enumerate(reader, start=2):
+                if line > MAX_RECORDS + 1:
+                    raise DatasetError(f"manifest exceeds {MAX_RECORDS} records")
+                if None in row or any(value is None for value in row.values()):
+                    raise DatasetError(f"line {line}: malformed CSV row width")
+                rows.append(row)
+    except (csv.Error, UnicodeError) as exc:
+        raise DatasetError("manifest contains malformed CSV or invalid UTF-8") from exc
 
     if not rows:
         raise DatasetError("manifest contains no audio records")
@@ -89,19 +117,21 @@ def validate_dataset(root: Path, manifest: Path) -> dict:
     final_negative_speakers: set[str] = set()
 
     for line, row in enumerate(rows, start=2):
-        speaker = (row.get("speaker_id") or "").strip()
-        split = (row.get("split") or "").strip()
-        label = (row.get("label") or "").strip()
-        consent = (row.get("consent") or "").strip().lower()
-        relative = (row.get("path") or "").strip()
-        if not speaker:
-            raise DatasetError(f"line {line}: speaker_id is required")
+        speaker = _validate_identifier(row["speaker_id"], "speaker_id")
+        split = row["split"].strip()
+        label = row["label"].strip()
+        consent = row["consent"].strip().lower()
+        relative = row["path"].strip()
         if split not in SPLITS:
             raise DatasetError(f"line {line}: split must be train, calibration, or final_test")
         if label not in LABELS:
             raise DatasetError(f"line {line}: label must be positive or negative")
         if consent not in {"yes", "true", "1"}:
             raise DatasetError(f"line {line}: explicit participant consent is required")
+        if not relative or len(relative) > MAX_AUDIO_PATH_LENGTH:
+            raise DatasetError(f"line {line}: audio path is empty or exceeds {MAX_AUDIO_PATH_LENGTH} characters")
+        if any(unicodedata.category(char) in {"Cc", "Cf"} for char in relative):
+            raise DatasetError(f"line {line}: audio path contains control or format characters")
         if relative in seen_paths:
             raise DatasetError(f"line {line}: duplicate audio path: {relative}")
         seen_paths.add(relative)

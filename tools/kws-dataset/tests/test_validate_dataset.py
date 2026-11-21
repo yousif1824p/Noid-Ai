@@ -3,6 +3,7 @@ import tempfile
 import unittest
 import wave
 from pathlib import Path
+from unittest.mock import patch
 
 from validate_dataset import DatasetError, validate_dataset
 
@@ -24,7 +25,7 @@ class DatasetValidationTest(unittest.TestCase):
             out.setnchannels(1)
             out.setsampwidth(2)
             out.setframerate(1)
-            out.writeframes(b"\0\0" * seconds)
+            out.writeframes(b"\\0\\0" * seconds)
         return name
 
     def add(self, speaker, split, label, name, seconds=1, consent="yes"):
@@ -87,6 +88,47 @@ class DatasetValidationTest(unittest.TestCase):
         report = validate_dataset(self.root, Path("manifest.csv"))
         self.assertFalse(report["valid"])
         self.assertGreaterEqual(len(report["errors"]), 4)
+
+    def test_rejects_duplicate_or_reordered_headers(self):
+        self.wav("a.wav", 1)
+        path = self.root / "manifest.csv"
+        path.write_text(
+            "speaker_id,split,label,consent,path,path\\n"
+            "speaker,train,positive,yes,a.wav,a.wav\\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(DatasetError, "columns must exactly match"):
+            validate_dataset(self.root, path)
+
+    def test_rejects_extra_or_missing_csv_fields(self):
+        self.add("speaker", "train", "positive", "a.wav")
+        path = self.manifest()
+        path.write_text(
+            "speaker_id,split,label,consent,path\\n"
+            "speaker,train,positive,yes,a.wav,unexpected\\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(DatasetError, "malformed CSV row width"):
+            validate_dataset(self.root, path)
+
+    def test_rejects_control_characters_in_speaker_identifier(self):
+        self.add("speaker\\u202e", "train", "positive", "a.wav")
+        with self.assertRaisesRegex(DatasetError, "control or format"):
+            validate_dataset(self.root, self.manifest())
+
+    def test_enforces_manifest_size_and_record_count_limits(self):
+        path = self.root / "manifest.csv"
+        path.write_text("speaker_id,split,label,consent,path\\n", encoding="utf-8")
+        with patch("validate_dataset.MAX_MANIFEST_BYTES", 8):
+            with self.assertRaisesRegex(DatasetError, "exceeds"):
+                validate_dataset(self.root, path)
+
+        self.add("speaker-a", "train", "positive", "a.wav")
+        self.add("speaker-b", "train", "positive", "b.wav")
+        path = self.manifest()
+        with patch("validate_dataset.MAX_RECORDS", 1):
+            with self.assertRaisesRegex(DatasetError, "exceeds 1 records"):
+                validate_dataset(self.root, path)
 
 
 if __name__ == "__main__":
