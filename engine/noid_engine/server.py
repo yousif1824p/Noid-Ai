@@ -20,6 +20,7 @@ MAX_CONTEXT_BYTES = 65_536
 MAX_REQUEST_ID_CHARS = 64
 MAX_OUTPUT_CHARS = 32_000
 MAX_DELTA_CHARS = 8_000
+MAX_ACTIVE_REQUESTS = 4
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._~-]{1,64}$")
 ALLOWED_ROLES = {"user", "assistant"}
 
@@ -95,7 +96,6 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
         else:
             backend = UnconfiguredEngine()
     backend_configured = not isinstance(backend, UnconfiguredEngine)
-    backend_configured = not isinstance(backend, UnconfiguredEngine)
     expected_token = token if token is not None else os.environ.get("NOID_API_TOKEN", "")
     active: dict[str, ActiveRequest] = {}
     active_lock = asyncio.Lock()
@@ -147,6 +147,8 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
         async with active_lock:
             if request_id in active:
                 return _error_response("conflict", 409)
+            if len(active) >= MAX_ACTIVE_REQUESTS:
+                return _error_response("rate_limited", 429)
             active[request_id] = state
 
         async def events() -> AsyncIterator[bytes]:
