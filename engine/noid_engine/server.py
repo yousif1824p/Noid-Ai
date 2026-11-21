@@ -72,7 +72,11 @@ def _validate_payload(payload: object) -> tuple[str, list[dict[str, str]]] | Non
         if not isinstance(message, dict) or set(message) != {"role", "content"}:
             return None
         role, content = message.get("role"), message.get("content")
-        if role not in ALLOWED_ROLES or not isinstance(content, str):
+        # Validate the type before set membership: JSON arrays/objects are
+        # unhashable in Python and must be rejected as client input, not 500s.
+        if not isinstance(role, str) or role not in ALLOWED_ROLES:
+            return None
+        if not isinstance(content, str):
             return None
         if not content.strip() or len(content) > MAX_MESSAGE_CHARS:
             return None
