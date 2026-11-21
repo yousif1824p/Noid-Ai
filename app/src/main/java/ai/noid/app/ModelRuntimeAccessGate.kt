@@ -1,8 +1,6 @@
 package ai.noid.app
 
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.lock
-import kotlinx.coroutines.sync.unlock
 
 /**
  * Prevents model replacement or shutdown while an inference conversation is active.
