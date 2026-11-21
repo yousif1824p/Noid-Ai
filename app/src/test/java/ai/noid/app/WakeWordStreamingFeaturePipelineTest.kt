@@ -87,6 +87,24 @@ class WakeWordStreamingFeaturePipelineTest {
     }
 
     @Test
+    fun rejectsOutOfRangeNormalizedSamplesWithoutAdvancingWarmup() {
+        for (outOfRange in listOf(1.01f, -1.01f)) {
+            val streaming = pipeline()
+            val invalid = FloatArray(1_600).also { it[800] = outOfRange }
+            try {
+                streaming.processChunk(invalid)
+                throw AssertionError("Expected normalized PCM range rejection")
+            } catch (_: IllegalArgumentException) {
+                // expected
+            }
+
+            val valid = FloatArray(1_600) { if (it == 0) 0.4f else 0f }
+            repeat(9) { assertNull(streaming.processChunk(valid)) }
+            assertNotNull(streaming.processChunk(valid))
+        }
+    }
+
+    @Test
     fun resetClearsRollingWindowAndFilterState() {
         val streaming = pipeline()
         val chunk = FloatArray(1_600) { if (it == 0) 0.4f else 0f }
