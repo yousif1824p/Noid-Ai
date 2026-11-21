@@ -36,8 +36,8 @@ object ProjectSecurityScanner {
                 severity = ApkFindingSeverity.LOW,
                 title = "الفحص لم يشمل بعض الملفات",
                 description = "تعذرت مراجعة بعض الملفات أو تم تجاوزها بسبب نوعها أو حدود الفحص أو تعذر قراءتها؛ لذلك لا تمثل النتائج مراجعة كاملة للمشروع.",
-                evidence = "عدد الملفات التي تم تجاوزها أو تعذرت قراءتها: $skippedFiles.",
-                recommendation = "راجع الملفات المتجاوزة، وافحص الأجزاء التي لم تشملها المراجعة بعد معالجة سبب التجاوز.",
+                evidence = "عدد العناصر التي تم تجاوزها أو تعذرت معالجتها: $skippedFiles.",
+                recommendation = "راجع العناصر المتجاوزة، وافحص الأجزاء التي لم تشملها المراجعة بعد معالجة سبب التجاوز.",
                 confidence = ApkFindingConfidence.HIGH
             )
         }
