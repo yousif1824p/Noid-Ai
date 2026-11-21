@@ -107,6 +107,8 @@
 - [x] Add bounded JSON serialization for validated remote chat requests, emitting only request IDs and plain-text user/assistant messages; verify exact schema, Unicode round-tripping, unsupported-role rejection, and UTF-8/body limits with unit tests. This does not perform network I/O.
 - [x] Implement the opt-in remote HTTPS/SSE client with explicit configuration, Android Keystore-backed bearer-token storage, bounded request/response handling, cancellation, and strict event validation; covered by remote transport, settings, policy, and adapter unit tests. Live interoperability with a deployed compatible server remains pending.
 - [x] Support LF, CRLF, and CR-only SSE line endings in the bounded frame decoder, with regression tests; live-server interoperability remains pending.
+- [x] Implement the authenticated Python HTTP/SSE service boundary: exact bounded request schema, bearer authentication, ordered started/delta/completed/error events, output caps, and cancellation requests. The default backend remains explicitly unavailable; no model provider is fabricated.
+- [ ] Integrate a real inference provider and verify live Android-to-server HTTPS interoperability.
 - [ ] Keep untrusted execution isolated on a properly sandboxed remote environment.
 
 ## Stage 6 — personal private release (no public distribution)
