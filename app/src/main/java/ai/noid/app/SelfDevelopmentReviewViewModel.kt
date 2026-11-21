@@ -12,7 +12,9 @@ import kotlinx.coroutines.launch
 
 /** User-facing review only. Approval never applies a change to the selected project. */
 class SelfDevelopmentReviewViewModel(
-    private val repository: SelfDevelopmentProposalRepository
+    private val repository: SelfDevelopmentProposalRepository,
+    private val applyCoordinator: SelfDevelopmentApplyCoordinator? = null,
+    private val selectedTree: SelectedProjectTreeSession? = null
 ) : ViewModel() {
     val pending = repository.pending
 
@@ -53,6 +55,53 @@ class SelfDevelopmentReviewViewModel(
         failure = "تعذر رفض المقترح؛ ربما عولج مسبقاً."
     ) { check(repository.reject(id)) }
 
+    fun apply(id: Long) {
+        if (operation?.isActive == true) return
+        val coordinator = applyCoordinator
+        val selection = selectedTree?.current()
+        if (coordinator == null || selection == null) {
+            _message.value = "اختر مجلد المشروع أولاً؛ لا يمكن تطبيق المقترح دون تحديد مصدره."
+            return
+        }
+        operation = viewModelScope.launch {
+            _busy.value = true
+            _message.value = null
+            try {
+                _message.value = when (val result = coordinator.apply(id, selection.selectionId)) {
+                    is SelfDevelopmentApplyResult.Applied -> {
+                        if (result.completionAudited) {
+                            "تم تطبيق المقترح. النسخة السابقة محفوظة: ${result.backup.backupFile.name}"
+                        } else {
+                            "تم تطبيق المقترح وحُفظت نسخته السابقة، لكن تعذر تسجيل اكتمال العملية في سجل التدقيق."
+                        }
+                    }
+                    SelfDevelopmentApplyResult.ProposalNotFound -> "المقترح غير موجود."
+                    SelfDevelopmentApplyResult.NotApproved -> "لا يمكن التطبيق؛ يجب اعتماد المقترح أولاً."
+                    SelfDevelopmentApplyResult.AlreadyProcessing -> "هذا المقترح قيد المعالجة أو عولج سابقاً؛ لن نكرر الكتابة."
+                    SelfDevelopmentApplyResult.ProjectNotSelected -> "اختر مجلد المشروع الذي يحتوي على الملف."
+                    SelfDevelopmentApplyResult.ProjectSelectionChanged -> "تغير اختيار المشروع؛ أعد مراجعة المقترح."
+                    SelfDevelopmentApplyResult.PermissionUnavailable -> "إذن قراءة وكتابة مجلد المشروع غير متاح."
+                    SelfDevelopmentApplyResult.SourceStale -> "تغير الملف الأصلي منذ إنشاء المقترح؛ رُفض التطبيق ولم تُكتب التغييرات."
+                    SelfDevelopmentApplyResult.SourceUnavailable -> "تعذرت إعادة قراءة الملف؛ لم يُطبق المقترح."
+                    SelfDevelopmentApplyResult.InvalidProposalSnapshot -> "بيانات المقترح أو بصماته غير متطابقة؛ رُفض التطبيق."
+                    SelfDevelopmentApplyResult.AuditUnavailable -> "تعذر تسجيل بدء العملية؛ لم يبدأ التطبيق."
+                    is SelfDevelopmentApplyResult.Rejected -> result.reason
+                    is SelfDevelopmentApplyResult.Failed ->
+                        "فشل التطبيق (${result.exceptionType}). لا تعاود المحاولة قبل فحص الملف والنسخة الاحتياطية."
+                    SelfDevelopmentApplyResult.AppliedStateNotRecorded ->
+                        "قد يكون الملف قد تغير، لكن تعذر تسجيل حالة التطبيق. لا تعاود التطبيق؛ افحص الملف وسجل التدقيق."
+                }
+                _recent.value = repository.recent()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _message.value = "تعذر إكمال عملية التطبيق أو تحديث سجل المقترحات."
+            } finally {
+                _busy.value = false
+            }
+        }
+    }
+
     private fun runReview(success: String, failure: String, block: suspend () -> Unit) {
         if (operation?.isActive == true) return
         operation = viewModelScope.launch {
@@ -74,13 +123,15 @@ class SelfDevelopmentReviewViewModel(
 }
 
 class SelfDevelopmentReviewViewModelFactory(
-    private val repository: SelfDevelopmentProposalRepository
+    private val repository: SelfDevelopmentProposalRepository,
+    private val applyCoordinator: SelfDevelopmentApplyCoordinator? = null,
+    private val selectedTree: SelectedProjectTreeSession? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(SelfDevelopmentReviewViewModel::class.java)) {
             "Unknown ViewModel class: ${modelClass.name}"
         }
-        return SelfDevelopmentReviewViewModel(repository) as T
+        return SelfDevelopmentReviewViewModel(repository, applyCoordinator, selectedTree) as T
     }
 }
