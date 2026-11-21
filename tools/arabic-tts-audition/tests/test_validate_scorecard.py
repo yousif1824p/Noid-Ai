@@ -17,11 +17,12 @@ class ScorecardTests(unittest.TestCase):
             writer.writerows(rows)
         return path
 
-    def row(self, listener="L1", dialect="msa", **overrides):
+    def row(self, listener="L1", **overrides):
         row = {
-            "candidate_id": "candidate-a", "dialect": dialect, "listener_code": listener,
-            "arabic_authenticity": "4", "iraqi_fidelity": "3", "intelligibility": "5",
-            "gender_ambiguity": "4", "synthetic_identity": "5", "stability": "4",
+            "candidate_id": "candidate-a", "listener_code": listener,
+            "arabic_authenticity": "4", "msa_pronunciation": "4",
+            "intelligibility": "5", "gender_ambiguity": "4",
+            "synthetic_identity": "5", "stability": "4",
         }
         row.update(overrides)
         return row
@@ -42,8 +43,10 @@ class ScorecardTests(unittest.TestCase):
     def test_invalid_score_is_rejected(self):
         self.assertFalse(validate(self.write_rows([self.row("L1", intelligibility="6")]))["valid"])
 
-    def test_unknown_dialect_is_rejected(self):
-        self.assertFalse(validate(self.write_rows([self.row("L1", dialect="gulf")]))["valid"])
+    def test_old_dialect_column_is_rejected(self):
+        row = self.row("L1")
+        row["dialect"] = "iraqi"
+        self.assertFalse(validate(self.write_rows([row]))["valid"])
 
     def test_small_panel_is_not_misrepresented_as_sufficient(self):
         result = validate(self.write_rows([self.row("L1")]))
@@ -54,10 +57,10 @@ class ScorecardTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         path = Path(temp.name) / "duplicate.csv"
-        path.write_text(",".join(COLUMNS) + ",dialect\n", encoding="utf-8")
+        path.write_text(",".join(COLUMNS) + ",listener_code\n", encoding="utf-8")
         result = validate(path)
         self.assertFalse(result["valid"])
-        self.assertIn("Duplicate columns: dialect", result["errors"][0])
+        self.assertIn("Duplicate columns: listener_code", result["errors"][0])
 
     def test_extra_csv_fields_are_rejected(self):
         path = self.write_rows([self.row("L1")])
@@ -117,7 +120,7 @@ class ScorecardTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         path = Path(temp.name) / "invalid-utf8.csv"
-        path.write_bytes(b"candidate_id,dialect,listener_code,\xff")
+        path.write_bytes(b"candidate_id,listener_code,\xff")
         result = validate(path)
         self.assertFalse(result["valid"])
         self.assertTrue(any("Cannot read valid CSV" in error for error in result["errors"]))
@@ -127,7 +130,7 @@ class ScorecardTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         path = Path(temp.name) / "malformed.csv"
         path.write_text(
-            ",".join(COLUMNS) + "\n" + '"candidate-a,msa,L1,4,3,5,4,5,4\n',
+            ",".join(COLUMNS) + "\n" + '"candidate-a,L1,4,4,5,4,5,4\n',
             encoding="utf-8",
         )
         result = validate(path)
