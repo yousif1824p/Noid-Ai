@@ -10,7 +10,7 @@ heed init /absolute/private/path/noid-heed/ya_noid --phrase "يا NOID"
 python tools/kws-dataset/import_dataset_to_heed.py /private/path/to/dataset /absolute/private/path/noid-heed/ya_noid
 ```
 
-The importer validates structural and quantity gates, then copies only `train` rows into an empty Heed project. Calibration and final-test audio are excluded. Keep recordings and consent records outside Git.
+The importer validates structural and quantity gates, then copies only `train` rows into an empty Heed project. Calibration and final-test audio are excluded. Every split must contain both positive and negative recordings; the validator reports per-split counts without exposing speaker identifiers. Keep recordings and consent records outside Git.
 
 Manifest safety limits:
 - CSV manifest is limited to 8 MiB and 100,000 records.

@@ -49,8 +49,9 @@ class DatasetValidationTest(unittest.TestCase):
                 ("calibration", f"cal{i % 2}") if i < 180 else ("train", f"train{i % 4}")
             )
             self.add(speaker, split, "positive", f"positive/{i}.wav")
-        # 6 hours of train/calibration negatives and 2 hours held out.
-        self.add("neg-train", "train", "negative", "negative/train.wav", 21600)
+        # Six hours of training negatives, a calibration negative, and two held-out hours.
+        self.add("neg-train", "train", "negative", "negative/train.wav", 21599)
+        self.add("neg-cal", "calibration", "negative", "negative/cal.wav", 1)
         self.add("neg-held-a", "final_test", "negative", "negative/held-a.wav", 3600)
         self.add("neg-held-b", "final_test", "negative", "negative/held-b.wav", 3600)
 
@@ -63,7 +64,17 @@ class DatasetValidationTest(unittest.TestCase):
         self.assertEqual(report["held_out_positive_speakers"], 4)
         self.assertEqual(report["negative_hours"], 8.0)
         self.assertEqual(report["held_out_negative_hours"], 2.0)
+        self.assertEqual(report["split_counts"]["train"]["positive_records"], 120)
+        self.assertEqual(report["split_counts"]["calibration"]["negative_records"], 1)
+        self.assertEqual(report["split_counts"]["final_test"]["speakers"], 6)
         self.assertFalse(report["audio_uploaded"])
+
+    def test_rejects_a_split_without_both_positive_and_negative_recordings(self):
+        self.valid_fixture()
+        self.rows = [row for row in self.rows if row["speaker_id"] != "neg-cal"]
+        report = validate_dataset(self.root, self.manifest())
+        self.assertFalse(report["valid"])
+        self.assertIn("calibration split has no negative recordings", report["errors"])
 
     def test_rejects_speaker_leakage(self):
         self.add("same-person", "train", "positive", "a.wav")

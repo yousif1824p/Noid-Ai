@@ -63,6 +63,7 @@
 - [ ] Implement a user-started microphone foreground service with visible notification, runtime permission flow, immediate stop, and Android 14+ compliance.
 - [x] Evaluate candidate KWS runtimes, licenses, Android paths, and Arabic/Iraqi validation requirements; document why no candidate is enabled before evidence exists. See `docs/VOICE_KWS_EVALUATION.md`.
 - [x] Define a measurable Arabic/Iraqi wake-word evaluation dataset, consent, held-out speaker split, false-activation/recall/latency targets, and Android runtime safety gates. See `docs/VOICE_MODEL_VALIDATION_PLAN.md`.
+- [x] Require positive and negative recordings in train, calibration, and final-test splits; report split composition without exposing speaker identifiers.
 - [ ] Integrate and validate a real local Arabic-capable KWS model for «يا NOID».
 - [x] Verify the pinned LiteRT-LM 0.18.1 Kotlin API exposes image content and a vision backend; document the separate multimodal-model requirement and validation gates in `docs/VISION_RUNTIME_DECISION.md`.
 - [x] Add a separate user-selected multimodal vision-model importer/restore flow and a LiteRT-LM `VisionEngine` adapter using `Content.ImageBytes`, a dedicated CPU vision backend, bounded image reads, and strict completion validation; target-device compatibility remains unverified.

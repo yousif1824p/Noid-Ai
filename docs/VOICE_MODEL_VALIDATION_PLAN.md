@@ -17,6 +17,7 @@ Target phrase: «يا NOID» (Iraqi Arabic). Inference must remain on-device.
 
 - Positive set: at least 300 phrase utterances from at least 10 consenting speakers, with at least 4 speakers held out entirely from training.
 - Negative set: at least 8 hours of varied audio, with at least 2 hours from held-out speakers and realistic background sound.
+- Each of train, calibration, and final-test splits must contain both positive wake-phrase recordings and negative recordings; the validator reports split counts without publishing speaker identifiers.
 - Report results per speaker and per acoustic condition, not only one aggregate score.
 
 ## Provisional acceptance thresholds

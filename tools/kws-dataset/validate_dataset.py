@@ -115,6 +115,8 @@ def validate_dataset(root: Path, manifest: Path) -> dict:
     final_negative_seconds = 0.0
     negative_speakers: set[str] = set()
     final_negative_speakers: set[str] = set()
+    split_label_counts = {split: {label: 0 for label in LABELS} for split in SPLITS}
+    split_speakers: dict[str, set[str]] = defaultdict(set)
 
     for line, row in enumerate(rows, start=2):
         speaker = _validate_identifier(row["speaker_id"], "speaker_id")
@@ -136,6 +138,8 @@ def validate_dataset(root: Path, manifest: Path) -> dict:
             raise DatasetError(f"line {line}: duplicate audio path: {relative}")
         seen_paths.add(relative)
         speaker_splits[speaker].add(split)
+        split_label_counts[split][label] += 1
+        split_speakers[split].add(speaker)
         audio_path = _inside(root, relative)
         duration = _wav_duration(audio_path)
 
@@ -156,6 +160,10 @@ def validate_dataset(root: Path, manifest: Path) -> dict:
         raise DatasetError("speaker leakage across splits: " + ", ".join(leaked))
 
     problems = []
+    for split in sorted(SPLITS):
+        for label in sorted(LABELS):
+            if split_label_counts[split][label] == 0:
+                problems.append(f"{split} split has no {label} recordings")
     if positive_count < MIN_POSITIVE:
         problems.append(f"positive utterances: {positive_count}/{MIN_POSITIVE}")
     if len(positive_speakers) < MIN_POSITIVE_SPEAKERS:
@@ -178,6 +186,14 @@ def validate_dataset(root: Path, manifest: Path) -> dict:
         "negative_hours": round(negative_seconds / 3600, 4),
         "held_out_negative_hours": round(final_negative_seconds / 3600, 4),
         "held_out_negative_speakers": len(final_negative_speakers),
+        "split_counts": {
+            split: {
+                "positive_records": split_label_counts[split]["positive"],
+                "negative_records": split_label_counts[split]["negative"],
+                "speakers": len(split_speakers[split]),
+            }
+            for split in sorted(SPLITS)
+        },
         "speaker_split_leakage": 0,
         "errors": problems,
         "audio_uploaded": False,
