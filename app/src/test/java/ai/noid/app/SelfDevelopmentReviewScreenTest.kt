@@ -1,7 +1,6 @@
 package ai.noid.app
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -44,20 +43,20 @@ class SelfDevelopmentReviewScreenTest {
             MaterialTheme { SelfDevelopmentReviewScreen(viewModel) }
         }
 
-        composeRule.onNodeWithText("مراجعة تطوير NOID").assertExists()
-        composeRule.onNodeWithText("تحسين المعالجة").assertExists()
-        composeRule.onNodeWithText("المسار: src/Worker.kt").assertExists()
-        composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").assertExists()
+        composeRule.onNodeWithText("مراجعة تطوير NOID").fetchSemanticsNode()
+        composeRule.onNodeWithText("تحسين المعالجة").fetchSemanticsNode()
+        composeRule.onNodeWithText("المسار: src/Worker.kt").fetchSemanticsNode()
+        composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").fetchSemanticsNode()
         composeRule.onNodeWithText(
             "هذه مقترحات محفوظة منفصلة عن ملفات المشروع. الموافقة تسجل قرارك فقط؛ لا تكتب الملفات ولا تمنح إذناً بالتطبيق. لن يُنفّذ أي تغيير من هذه الشاشة."
-        ).assertExists()
+        ).fetchSemanticsNode()
         composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
         composeRule.waitForIdle()
         assertEquals(SelfDevelopmentProposal.STATUS_APPROVED, dao.rows.value.single().status)
     }
 
     private class FakeProposalDao : SelfDevelopmentProposalDao {
-        private val rows = MutableStateFlow<List<SelfDevelopmentProposal>>(emptyList())
+        val rows = MutableStateFlow<List<SelfDevelopmentProposal>>(emptyList())
         override fun observePending(): Flow<List<SelfDevelopmentProposal>> =
             rows.map { list -> list.filter { it.status == SelfDevelopmentProposal.STATUS_PENDING_REVIEW } }
         override suspend fun getRecent(limit: Int): List<SelfDevelopmentProposal> =
