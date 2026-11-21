@@ -30,7 +30,7 @@ object ProjectSecurityScanner {
 
     fun scan(files: List<ProjectSourceFile>): List<ApkSecurityFinding> {
         val findings = mutableListOf<ApkSecurityFinding>()
-        files.forEach { file ->
+        files.take(MAX_INPUT_FILES).forEach { file ->
             val path = ProjectFilePolicy.normalizeRelativePath(file.relativePath) ?: return@forEach
             if (!ProjectFilePolicy.isEditableTextFile(path.substringAfterLast('/'))) return@forEach
             if (file.content.toByteArray(StandardCharsets.UTF_8).size > ProjectFilePolicy.MAX_TEXT_FILE_BYTES) return@forEach
@@ -128,4 +128,5 @@ object ProjectSecurityScanner {
     }
 
     const val MAX_FINDINGS = 5_000
+    const val MAX_INPUT_FILES = 500
 }
