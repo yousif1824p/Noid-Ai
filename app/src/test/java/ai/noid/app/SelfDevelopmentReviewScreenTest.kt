@@ -5,23 +5,39 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
-import org.robolectric.annotation.LooperMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
-@LooperMode(LooperMode.Mode.PAUSED)
 class SelfDevelopmentReviewScreenTest {
+    private val mainDispatcher = StandardTestDispatcher()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Before
+    fun setMainDispatcher() { Dispatchers.setMain(mainDispatcher) }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @After
+    fun resetMainDispatcher() { Dispatchers.resetMain() }
+
     @get:Rule
     val composeRule = createComposeRule()
 
@@ -47,13 +63,8 @@ class SelfDevelopmentReviewScreenTest {
             MaterialTheme { SelfDevelopmentReviewScreen(viewModel) }
         }
 
-        // The screen loads recent proposals asynchronously in init. Wait for the
-        // repository result before asserting card semantics; otherwise Robolectric
-        // can observe the initial empty StateFlow and time out on the title.
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            shadowOf(Looper.getMainLooper()).idle()
-            viewModel.recent.value.singleOrNull()?.title == "تحسين المعالجة"
-        }
+        mainDispatcher.scheduler.advanceUntilIdle()
+        composeRule.waitForIdle()
         composeRule.onNodeWithText("مراجعة تطوير NOID").fetchSemanticsNode()
         composeRule.onNodeWithText("تحسين المعالجة").fetchSemanticsNode()
         composeRule.onNodeWithText("المسار: src/Worker.kt").fetchSemanticsNode()
@@ -62,10 +73,8 @@ class SelfDevelopmentReviewScreenTest {
             "هذه مقترحات محفوظة منفصلة عن ملفات المشروع. الموافقة تسجل قرارك فقط؛ لا تكتب الملفات ولا تمنح إذناً بالتطبيق. لن يُنفّذ أي تغيير من هذه الشاشة."
         ).fetchSemanticsNode()
         composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            shadowOf(Looper.getMainLooper()).idle()
-            dao.rows.value.singleOrNull()?.status == SelfDevelopmentProposal.STATUS_APPROVED
-        }
+        mainDispatcher.scheduler.advanceUntilIdle()
+        composeRule.waitForIdle()
         assertEquals(SelfDevelopmentProposal.STATUS_APPROVED, dao.rows.value.single().status)
     }
 
