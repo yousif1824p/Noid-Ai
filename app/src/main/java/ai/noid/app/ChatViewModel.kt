@@ -50,6 +50,7 @@ class ChatRepository(
 class ChatViewModel(
     private val repository: ChatRepository,
     private val memoryRepository: MemoryRepository,
+    private val learningRepository: LearningRepository,
     private val engine: AssistantEngine,
     private val toolRegistry: ToolRegistry,
     private val remoteChatAdapter: RemoteChatTurnAdapter = RemoteChatTurnAdapter()
@@ -167,6 +168,7 @@ class ChatViewModel(
                 val request = AssistantTurnRequest(
                     conversation = repository.currentConversation(),
                     approvedMemories = memoryRepository.recentContext(),
+                    approvedLessons = learningRepository.approvedContext(),
                     toolProviders = toolRegistry.modelToolProviders()
                 )
                 val response = AssistantResponseCollector()
@@ -255,6 +257,7 @@ class ChatViewModel(
 class ChatViewModelFactory(
     private val repository: ChatRepository,
     private val memoryRepository: MemoryRepository,
+    private val learningRepository: LearningRepository,
     private val engine: AssistantEngine,
     private val toolRegistry: ToolRegistry,
     private val remoteChatAdapter: RemoteChatTurnAdapter = RemoteChatTurnAdapter()
@@ -264,6 +267,6 @@ class ChatViewModelFactory(
         require(modelClass.isAssignableFrom(ChatViewModel::class.java)) {
             "Unknown ViewModel class: ${modelClass.name}"
         }
-        return ChatViewModel(repository, memoryRepository, engine, toolRegistry, remoteChatAdapter) as T
+        return ChatViewModel(repository, memoryRepository, learningRepository, engine, toolRegistry, remoteChatAdapter) as T
     }
 }
