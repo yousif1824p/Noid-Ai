@@ -17,7 +17,6 @@ class ProjectSecurityScannerTest {
         assertTrue(finding.evidence.contains("[REDACTED]"))
     }
 
-
     @Test fun detectsBearerCredentialsWithoutEchoingTheToken() {
         val token = "eyJhbGciOiJIUzI1NiJ9.fake-payload.signature"
         val findings = ProjectSecurityScanner.scan(
@@ -38,6 +37,29 @@ class ProjectSecurityScannerTest {
         assertEquals(ApkFindingSeverity.HIGH, finding.severity)
         assertFalse(finding.evidence.contains(token))
         assertTrue(finding.evidence.contains("تم حجب بيانات الاعتماد"))
+    }
+
+    @Test fun detectsProviderTokenFormatsAndRedactsTheirValues() {
+        val githubClassic = "ghp_" + "A".repeat(36)
+        val githubFineGrained = "github_pat_" + "B".repeat(30)
+        val slack = "xoxb-" + "C".repeat(20)
+        val google = "AIza" + "D".repeat(35)
+        val source = listOf(githubClassic, githubFineGrained, slack, google)
+            .joinToString("\n") { """credential = "$it"""" }
+
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/config.properties", source))
+        )
+
+        assertEquals(4, findings.size)
+        assertTrue(findings.any { it.id.startsWith("source.github_token") })
+        assertTrue(findings.any { it.id.startsWith("source.slack_token") })
+        assertTrue(findings.any { it.id.startsWith("source.google_api_key") })
+        listOf(githubClassic, githubFineGrained, slack, google).forEach { token ->
+            assertTrue(findings.none { it.evidence.contains(token) })
+        }
+        assertTrue(findings.all { it.evidence.contains("تم حجب بيانات الاعتماد") })
+        assertTrue(findings.all { it.severity == ApkFindingSeverity.HIGH })
     }
 
     @Test fun detectsPrivateKeyHeadersWithoutEchoingKeyMaterial() {

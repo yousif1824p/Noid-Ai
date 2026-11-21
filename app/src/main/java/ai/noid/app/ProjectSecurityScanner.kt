@@ -8,6 +8,14 @@ object ProjectSecurityScanner {
     private val secretAssignment = Regex("""(?i)\b(api[_-]?key|client[_-]?secret|password|passwd|access[_-]?token)\b\s*[:=]\s*["']([^"']{8,})["']""")
     private val bearerCredential = Regex("""(?i)\bAuthorization\b(?:["']?\s*\]?)?\s*(?:[:,=]|,\s*)\s*["']?\s*Bearer\s+[A-Za-z0-9._~+/=-]{8,}""")
     private val privateKeyHeader = Regex("""-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----""")
+    private val githubToken = Regex("""\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b""")
+    private val slackToken = Regex("""\bxox[baprs]-[A-Za-z0-9-]{10,}\b""")
+    private val googleApiKey = Regex("""\bAIza[0-9A-Za-z_-]{35}\b""")
+    private val providerCredentials = listOf(
+        Triple(githubToken, "source.github_token", "رمز وصول GitHub محتمل"),
+        Triple(slackToken, "source.slack_token", "رمز وصول Slack محتمل"),
+        Triple(googleApiKey, "source.google_api_key", "مفتاح Google API محتمل")
+    )
     private val debugEnabled = Regex("""(?i)android:debuggable\s*=\s*["']true["']|\bdebuggable\s*=\s*true""")
     private val cleartextEnabled = Regex("""(?i)usesCleartextTraffic\s*=\s*["']true["']""")
     private val javascriptEnabled = Regex("""setJavaScriptEnabled\s*\(\s*true\s*\)""")
@@ -63,6 +71,16 @@ object ProjectSecurityScanner {
                     "أزل الرمز من المصدر وألغِه إذا كان حقيقياً، واستخدم مخزناً آمناً للأسرار.",
                     ApkFindingConfidence.LOW
                 )
+                providerCredentials.forEach { (pattern, id, title) ->
+                    if (pattern.containsMatchIn(line)) add(
+                        id, ApkFindingSeverity.HIGH,
+                        title,
+                        "عُثر على نمط رمز معروف لمزوّد خدمة؛ تحقق من كونه اعتماداً فعلياً.",
+                        "$path:$lineNumber: تم حجب بيانات الاعتماد.",
+                        "أزل الرمز من المصدر وألغِه أو دوّره إذا كان حقيقياً، واستخدم مخزناً آمناً للأسرار.",
+                        ApkFindingConfidence.LOW
+                    )
+                }
                 if (privateKeyHeader.containsMatchIn(line)) add(
                     "source.private_key_material", ApkFindingSeverity.HIGH,
                     "ترويسة مادة مفتاح خاص داخل المصدر",
