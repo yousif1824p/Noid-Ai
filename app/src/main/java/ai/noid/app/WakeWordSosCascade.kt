@@ -70,6 +70,11 @@ internal class WakeWordSosCascade private constructor(
         state = null
     }
 
+    /** Creates an independent cascade with the same coefficients and fresh state. */
+    @Synchronized
+    internal fun freshCopy(): WakeWordSosCascade =
+        WakeWordSosCascade(rows.map { it.copyOf() })
+
     companion object {
         private val expectedShapes = mapOf(
             "highpass_sos" to listOf(4, 7),

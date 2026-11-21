@@ -42,11 +42,11 @@ Train and test the exact spoken phrase with consented Iraqi Arabic speakers. Pre
 1. On a computer, pin a reviewed Heed commit/release and reproduce its training/export pipeline in an isolated workspace.
 2. Train a first «يا NOID» experimental model using a small consented Iraqi dataset plus carefully licensed augmentation. Do not treat a single-speaker model as general-purpose.
 3. Export ONNX FP32 and TFLite candidates. Record SHA-256, source revision, model format, tensor dimensions, sample rate, frame contract, preprocessing profile, threshold, and trigger parameters.
-4. Run the existing Heed reference-vector generator and compare the Kotlin preprocessing outputs. Reject any unexplained numerical drift.
+4. Feed new PCM chunks through `WakeWordStreamingFeaturePipeline`, which filters each sample once and maintains a rolling one-second window. Compare its feature tensor with one-shot filtering of the identical complete stream and with the pinned Heed reference vectors. Reject any unexplained numerical drift.
 5. Add a real model-runtime adapter only after the exact graph input/output contract and Android runtime operators are verified. No dummy detector and no microphone capture.
 6. Evaluate held-out speakers and at least eight hours of negative audio. Keep the model disabled unless every target in `VOICE_MODEL_VALIDATION_PLAN.md` passes.
 7. Test arm64 inference, memory, latency, CPU, heat, and battery on the actual phone before enabling the user-started microphone service.
 
 ## Current NOID status
 
-The repository contains the generic KWS contract, strict model-bundle integrity checks, Kotlin DSP preprocessing, and Heed-derived parity fixtures. It does **not** contain a trained Arabic model, an ONNX/TFLite inference adapter, or a verified microphone capture path. The wake phrase remains unavailable; user-triggered Android dictation is still the only operational voice-input path.
+The repository contains the generic KWS contract, strict model-bundle integrity checks, a chunk-streaming Kotlin preprocessor with a rolling one-second window, and Heed-derived parity fixtures. It does **not** contain a trained Arabic model, an ONNX/TFLite inference adapter, or a verified microphone capture path. The wake phrase remains unavailable; user-triggered Android dictation is still the only operational voice-input path.

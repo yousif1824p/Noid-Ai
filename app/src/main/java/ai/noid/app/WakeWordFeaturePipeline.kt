@@ -5,10 +5,11 @@ import java.nio.ByteOrder
 import java.security.MessageDigest
 
 /**
- * Stateful bridge from a validated DSP v1 profile to log-mel features.
+ * One-window/batch bridge from a validated DSP v1 profile to log-mel features.
  *
- * The filter instances retain their SOS state across consecutive windows.
- * Call reset() only when beginning a new independent audio stream.
+ * Use [Configured.newStreamingSession] for live inference. Calling this
+ * batch extractor repeatedly with overlapping windows would feed old samples
+ * through the retained causal filter state more than once.
  */
 internal class WakeWordFeaturePipeline(
     private val highPass: WakeWordSosCascade,
