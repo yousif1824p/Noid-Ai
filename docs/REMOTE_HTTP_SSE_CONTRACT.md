@@ -1,6 +1,6 @@
 # Optional Remote Engine HTTP/SSE Contract
 
-**Status:** Design specification only. No remote server, connector, endpoint, or network transport is implemented by this document.
+**Status:** The Android HTTPS/SSE client and an authenticated Python server boundary are implemented. Live interoperability and a production inference provider remain unverified.
 
 ## 1. Goals and non-goals
 
@@ -99,4 +99,4 @@ Use stable codes such as `unauthorized`, `forbidden`, `invalid_request`, `reques
 
 ## 10. Implementation status
 
-This document defines the proposed contract only. HTTP client, SSE parser, server, authentication UI, secure credential storage, and end-to-end tests remain unimplemented and must be tracked separately.
+The Android client and authenticated Python server boundary now implement the bounded text-only protocol. The default server backend deliberately returns `unavailable` until a real provider is configured. Production TLS deployment, provider integration, cancellation under concurrent deployment, and live Android-to-server interoperability remain pending.
