@@ -121,184 +121,184 @@ class LiteRtLmAssistantEngine(
         try {
             val modelSha256 = ModelFileIntegrity.sha256(modelFile)
             runtimeAccessGate.withAccess {
-                initializeModelOnDispatcher(modelFile, displayName)
+                    initializeModelOnDispatcher(modelFile, displayName)
+                }
+                appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_ACTIVE_MODEL_FILE, modelFile.name)
+                    .putString(KEY_ACTIVE_MODEL_NAME, displayName)
+                    .putString(KEY_ACTIVE_MODEL_SHA256, modelSha256)
+                    .apply()
+                modelsDirectory.listFiles()
+                    ?.filter { it.name.startsWith("model-") && it != modelFile }
+                    ?.forEach { it.delete() }
+                displayName
+            } catch (cancelled: CancellationException) {
+                modelFile.delete()
+                if (runtime == null) {
+                    mutableStatus.value = AssistantEngineStatus.Unavailable("أُلغي تحميل النموذج.")
+                }
+                throw cancelled
+            } catch (failure: Exception) {
+                modelFile.delete()
+                if (runtime == null) {
+                    mutableStatus.value = AssistantEngineStatus.Unavailable(
+                        failure.message?.take(240) ?: "تعذر تهيئة محرك LiteRT-LM."
+                    )
+                }
+                throw failure
             }
-            appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putString(KEY_ACTIVE_MODEL_FILE, modelFile.name)
-                .putString(KEY_ACTIVE_MODEL_NAME, displayName)
-                .putString(KEY_ACTIVE_MODEL_SHA256, modelSha256)
-                .apply()
-            modelsDirectory.listFiles()
-                ?.filter { it.name.startsWith("model-") && it != modelFile }
-                ?.forEach { it.delete() }
-            displayName
-        } catch (cancelled: CancellationException) {
-            modelFile.delete()
-            if (runtime == null) {
-                mutableStatus.value = AssistantEngineStatus.Unavailable("أُلغي تحميل النموذج.")
-            }
-            throw cancelled
-        } catch (failure: Exception) {
-            modelFile.delete()
-            if (runtime == null) {
-                mutableStatus.value = AssistantEngineStatus.Unavailable(
-                    failure.message?.take(240) ?: "تعذر تهيئة محرك LiteRT-LM."
-                )
-            }
-            throw failure
         }
-    }
 
-    /** Restores the last user-imported model from app-private storage on process start. */
-    suspend fun restoreLastModel() = withContext(runtimeDispatcher) {
-        if (runtime != null) return@withContext
-        val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-        val fileName = preferences.getString(KEY_ACTIVE_MODEL_FILE, null) ?: return@withContext
-        if (!ModelFileImportPolicy.isSafeStoredFileName(fileName)) {
-            mutableStatus.value = AssistantEngineStatus.Unavailable(
-                "اسم ملف النموذج المحفوظ غير صالح."
-            )
-            return@withContext
-        }
-        val displayName = preferences.getString(KEY_ACTIVE_MODEL_NAME, fileName) ?: fileName
-        val modelFile = File(File(appContext.filesDir, "models"), fileName)
-        if (!modelFile.isFile || modelFile.length() <= 0L ||
-            modelFile.length() > ModelFileImportPolicy.MAX_MODEL_BYTES
-        ) {
-            mutableStatus.value = AssistantEngineStatus.Unavailable(
-                "ملف النموذج المحفوظ غير موجود أو غير صالح."
-            )
-            return@withContext
-        }
-        try {
-            val actualSha256 = ModelFileIntegrity.sha256(modelFile)
-            val storedSha256 = preferences.getString(KEY_ACTIVE_MODEL_SHA256, null)
-            if (storedSha256 != null &&
-                (!ModelFileIntegrity.isValidSha256(storedSha256) ||
-                    !actualSha256.equals(storedSha256, ignoreCase = true))
-            ) {
+        /** Restores the last user-imported model from app-private storage on process start. */
+        suspend fun restoreLastModel() = withContext(runtimeDispatcher) {
+            if (runtime != null) return@withContext
+            val preferences = appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            val fileName = preferences.getString(KEY_ACTIVE_MODEL_FILE, null) ?: return@withContext
+            if (!ModelFileImportPolicy.isSafeStoredFileName(fileName)) {
                 mutableStatus.value = AssistantEngineStatus.Unavailable(
-                    "تغيرت بصمة ملف النموذج المحفوظ؛ أعد استيراده قبل الاستخدام."
+                    "اسم ملف النموذج المحفوظ غير صالح."
                 )
                 return@withContext
             }
-            // One-time migration for models imported by versions that predate persisted digests.
-            if (storedSha256 == null) {
-                preferences.edit().putString(KEY_ACTIVE_MODEL_SHA256, actualSha256).apply()
+            val displayName = preferences.getString(KEY_ACTIVE_MODEL_NAME, fileName) ?: fileName
+            val modelFile = File(File(appContext.filesDir, "models"), fileName)
+            if (!modelFile.isFile || modelFile.length() <= 0L ||
+                modelFile.length() > ModelFileImportPolicy.MAX_MODEL_BYTES
+            ) {
+                mutableStatus.value = AssistantEngineStatus.Unavailable(
+                    "ملف النموذج المحفوظ غير موجود أو غير صالح."
+                )
+                return@withContext
             }
-            runtimeAccessGate.withAccess {
-                initializeModelOnDispatcher(modelFile, displayName)
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            mutableStatus.value = AssistantEngineStatus.Unavailable(
-                failure.message?.take(240) ?: "تعذر استعادة النموذج المحلي."
-            )
-        }
-    }
-
-    private fun initializeModelOnDispatcher(modelFile: File, displayName: String) {
-        val candidate = Engine(
-            EngineConfig(
-                modelPath = modelFile.absolutePath,
-                backend = Backend.CPU(),
-                cacheDir = File(appContext.cacheDir, "litert-cache").apply { mkdirs() }.absolutePath
-            )
-        )
-        // Store the engine only after successful initialization. LiteRT-LM documents
-        // that an Engine whose initialize() failed must not be closed.
-        try {
-            candidate.initialize()
-        } catch (failure: LinkageError) {
-            throw IllegalStateException(
-                "تعذر تحميل مكتبات LiteRT-LM الأصلية على هذا الجهاز.",
-                failure
-            )
-        }
-        val previous = runtime
-        runtime = candidate
-        mutableStatus.value = AssistantEngineStatus.Ready(displayName)
-        // Keep the old model alive until its replacement has initialized successfully.
-        try {
-            previous?.close()
-        } catch (_: Exception) {
-            // The newly initialized runtime remains usable if old native cleanup fails.
-        }
-    }
-
-    override fun generate(request: AssistantTurnRequest): Flow<AssistantStreamEvent> = flow {
-        runtimeAccessGate.withAccess {
-        val loadedEngine = runtime
-            ?: throw IllegalStateException("لم يتم تحميل نموذج LiteRT-LM بعد.")
-        val lastUserMessage = request.conversation.lastOrNull { it.fromUser }
-            ?: throw IllegalArgumentException("لا توجد رسالة مستخدم لإرسالها إلى النموذج.")
-
-        val history = request.conversation
-            .dropLastWhile { !it.fromUser }
-            .dropLast(1)
-            .takeLast(MAX_HISTORY_MESSAGES)
-            .map { message ->
-                if (message.fromUser) Message.user(message.text) else Message.model(message.text)
-            }
-
-        val memoryContext = request.approvedMemories
-            .takeLast(MAX_MEMORY_ITEMS)
-            .joinToString("\n") { memory ->
-                "- ${memory.title}: ${memory.content.take(MAX_MEMORY_ITEM_CHARS)}"
-            }
-        val systemInstruction = buildString {
-            append("أنت NOID AI، مساعد محلي مفيد ودقيق. أجب باللغة التي يستخدمها المستخدم. ")
-            append("لا تدّع تنفيذ إجراء لم تنفذه. في الأمن السيبراني، اقتصر على التحليل الدفاعي والاختبارات المصرح بها. ")
-            if (memoryContext.isNotBlank()) {
-                append("\nذكريات وافق المستخدم على استخدامها:\n")
-                append(memoryContext)
-            }
-        }
-
-        loadedEngine.createConversation(
-            ConversationConfig(
-                systemInstruction = Contents.of(systemInstruction),
-                initialMessages = history,
-                tools = request.toolProviders,
-                automaticToolCalling = false
-            )
-        ).use { conversation ->
-            var message = conversation.sendMessage(lastUserMessage.text)
-            var toolRounds = 0
-            while (true) {
-                val delta = message.toString()
-                if (delta.isNotEmpty()) emit(AssistantStreamEvent.TextDelta(delta))
-                if (message.toolCalls.isEmpty()) break
-                check(++toolRounds <= MAX_MANUAL_TOOL_ROUNDS) {
-                    "تجاوز النموذج الحد المسموح لاستدعاءات الأدوات في هذه الجولة."
-                }
-                if (message.toolCalls.size > 1) {
-                    val rejected = message.toolCalls.map { call ->
-                        com.google.ai.edge.litertlm.Content.ToolResponse(
-                            call.name, ToolCallResponseJson.failure("يسمح بطلب أداة واحد فقط في كل مرة.")
-                        )
-                    }
-                    message = conversation.sendMessage(Message.tool(Contents.of(rejected)))
-                    continue
-                }
-                val modelCall = message.toolCalls.single()
-                val pendingCall = AssistantToolCall(modelCall.name, modelCall.arguments)
-                emit(AssistantStreamEvent.ToolCall(pendingCall))
-                val toolResponse = kotlinx.coroutines.withTimeout(MODEL_TOOL_APPROVAL_TIMEOUT_MS) {
-                    pendingCall.response.await()
-                }
-                message = conversation.sendMessage(
-                    Message.tool(
-                        Contents.of(
-                            com.google.ai.edge.litertlm.Content.ToolResponse(modelCall.name, toolResponse)
-                        )
+            try {
+                val actualSha256 = ModelFileIntegrity.sha256(modelFile)
+                val storedSha256 = preferences.getString(KEY_ACTIVE_MODEL_SHA256, null)
+                if (storedSha256 != null &&
+                    (!ModelFileIntegrity.isValidSha256(storedSha256) ||
+                        !actualSha256.equals(storedSha256, ignoreCase = true))
+                ) {
+                    mutableStatus.value = AssistantEngineStatus.Unavailable(
+                        "تغيرت بصمة ملف النموذج المحفوظ؛ أعد استيراده قبل الاستخدام."
                     )
+                    return@withContext
+                }
+                // One-time migration for models imported by versions that predate persisted digests.
+                if (storedSha256 == null) {
+                    preferences.edit().putString(KEY_ACTIVE_MODEL_SHA256, actualSha256).apply()
+                }
+                runtimeAccessGate.withAccess {
+                    initializeModelOnDispatcher(modelFile, displayName)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                mutableStatus.value = AssistantEngineStatus.Unavailable(
+                    failure.message?.take(240) ?: "تعذر استعادة النموذج المحلي."
                 )
             }
         }
-        emit(AssistantStreamEvent.Completed)
+
+        private fun initializeModelOnDispatcher(modelFile: File, displayName: String) {
+            val candidate = Engine(
+                EngineConfig(
+                    modelPath = modelFile.absolutePath,
+                    backend = Backend.CPU(),
+                    cacheDir = File(appContext.cacheDir, "litert-cache").apply { mkdirs() }.absolutePath
+                )
+            )
+            // Store the engine only after successful initialization. LiteRT-LM documents
+            // that an Engine whose initialize() failed must not be closed.
+            try {
+                candidate.initialize()
+            } catch (failure: LinkageError) {
+                throw IllegalStateException(
+                    "تعذر تحميل مكتبات LiteRT-LM الأصلية على هذا الجهاز.",
+                    failure
+                )
+            }
+            val previous = runtime
+            runtime = candidate
+            mutableStatus.value = AssistantEngineStatus.Ready(displayName)
+            // Keep the old model alive until its replacement has initialized successfully.
+            try {
+                previous?.close()
+            } catch (_: Exception) {
+                // The newly initialized runtime remains usable if old native cleanup fails.
+            }
+        }
+
+        override fun generate(request: AssistantTurnRequest): Flow<AssistantStreamEvent> = flow {
+            runtimeAccessGate.withAccess {
+            val loadedEngine = runtime
+                ?: throw IllegalStateException("لم يتم تحميل نموذج LiteRT-LM بعد.")
+            val lastUserMessage = request.conversation.lastOrNull { it.fromUser }
+                ?: throw IllegalArgumentException("لا توجد رسالة مستخدم لإرسالها إلى النموذج.")
+
+            val history = request.conversation
+                .dropLastWhile { !it.fromUser }
+                .dropLast(1)
+                .takeLast(MAX_HISTORY_MESSAGES)
+                .map { message ->
+                    if (message.fromUser) Message.user(message.text) else Message.model(message.text)
+                }
+
+            val memoryContext = request.approvedMemories
+                .takeLast(MAX_MEMORY_ITEMS)
+                .joinToString("\n") { memory ->
+                    "- ${memory.title}: ${memory.content.take(MAX_MEMORY_ITEM_CHARS)}"
+                }
+            val systemInstruction = buildString {
+                append("أنت NOID AI، مساعد محلي مفيد ودقيق. أجب باللغة التي يستخدمها المستخدم. ")
+                append("لا تدّع تنفيذ إجراء لم تنفذه. في الأمن السيبراني، اقتصر على التحليل الدفاعي والاختبارات المصرح بها. ")
+                if (memoryContext.isNotBlank()) {
+                    append("\nذكريات وافق المستخدم على استخدامها:\n")
+                    append(memoryContext)
+                }
+            }
+
+            loadedEngine.createConversation(
+                ConversationConfig(
+                    systemInstruction = Contents.of(systemInstruction),
+                    initialMessages = history,
+                    tools = request.toolProviders,
+                    automaticToolCalling = false
+                )
+            ).use { conversation ->
+                var message = conversation.sendMessage(lastUserMessage.text)
+                var toolRounds = 0
+                while (true) {
+                    val delta = message.toString()
+                    if (delta.isNotEmpty()) emit(AssistantStreamEvent.TextDelta(delta))
+                    if (message.toolCalls.isEmpty()) break
+                    check(++toolRounds <= MAX_MANUAL_TOOL_ROUNDS) {
+                        "تجاوز النموذج الحد المسموح لاستدعاءات الأدوات في هذه الجولة."
+                    }
+                    if (message.toolCalls.size > 1) {
+                        val rejected = message.toolCalls.map { call ->
+                            com.google.ai.edge.litertlm.Content.ToolResponse(
+                                call.name, ToolCallResponseJson.failure("يسمح بطلب أداة واحد فقط في كل مرة.")
+                            )
+                        }
+                        message = conversation.sendMessage(Message.tool(Contents.of(rejected)))
+                        continue
+                    }
+                    val modelCall = message.toolCalls.single()
+                    val pendingCall = AssistantToolCall(modelCall.name, modelCall.arguments)
+                    emit(AssistantStreamEvent.ToolCall(pendingCall))
+                    val toolResponse = kotlinx.coroutines.withTimeout(MODEL_TOOL_APPROVAL_TIMEOUT_MS) {
+                        pendingCall.response.await()
+                    }
+                    message = conversation.sendMessage(
+                        Message.tool(
+                            Contents.of(
+                                com.google.ai.edge.litertlm.Content.ToolResponse(modelCall.name, toolResponse)
+                            )
+                        )
+                    )
+                }
+            }
+            emit(AssistantStreamEvent.Completed)
         }
     }.flowOn(runtimeDispatcher)
 
