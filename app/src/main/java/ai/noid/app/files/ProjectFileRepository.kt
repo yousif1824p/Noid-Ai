@@ -83,6 +83,8 @@ class ProjectFileRepository(context: Context, private val backupDirectory: File)
                     }
                 }
             } ?: throw IOException("تعذر إنشاء نسخة احتياطية.")
+            // Refuse to replace a document whose original bytes cannot be restored losslessly as UTF-8.
+            ProjectFileBackupTextEncoding.decode(Files.readAllBytes(backupPath))
             persistBackupMetadata(ProjectFileBackup(normalized, backup, backup.lastModified()))
             backupComplete = true
             resolver.openOutputStream(file.uri, "wt")?.use { output -> output.write(bytes); output.flush() }
@@ -179,7 +181,7 @@ class ProjectFileRepository(context: Context, private val backupDirectory: File)
         }
         val file = resolve(rootTreeUri, backup.relativePath)
         if (!file.isFile || !ProjectFilePolicy.isEditableTextFile(file.name ?: "")) throw IOException("ملف الاستعادة غير صالح.")
-        val restoreContent = backup.backupFile.readText(Charsets.UTF_8)
+        val restoreContent = ProjectFileBackupTextEncoding.decode(Files.readAllBytes(backup.backupFile.toPath()))
         return writeText(rootTreeUri, backup.relativePath, restoreContent)
     }
 
