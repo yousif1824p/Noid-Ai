@@ -2,7 +2,8 @@ package ai.noid.app
 
 /**
  * Validates bounded plain-text speech requests before they reach a synthesis provider.
- * Values outside the supported range are rejected rather than silently changed.
+ * NOID speech output is standardized on generic Arabic (MSA); dialect-specific
+ * locale tags are deliberately rejected.
  */
 object SpeechOutputRequestPolicy {
     // Kotlin String.length counts UTF-16 code units.
@@ -30,5 +31,5 @@ object SpeechOutputRequestPolicy {
     }
 
     private val ALLOWED_TEXT_CONTROLS = setOf('\n', '\r', '\t')
-    private val SUPPORTED_LANGUAGE_TAGS = setOf("ar", "ar-IQ", "ar-SA", "ar-EG")
+    private val SUPPORTED_LANGUAGE_TAGS = setOf("ar")
 }
