@@ -11,10 +11,16 @@ object ProjectSecurityScanner {
     private val githubToken = Regex("""\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b""")
     private val slackToken = Regex("""\bxox[baprs]-[A-Za-z0-9-]{10,}\b""")
     private val googleApiKey = Regex("""\bAIza[0-9A-Za-z_-]{35}\b""")
+    private val gitlabToken = Regex("""\bglpat-[A-Za-z0-9_-]{20,}\b""")
+    private val npmToken = Regex("""\bnpm_[A-Za-z0-9]{36}\b""")
+    private val stripeSecret = Regex("""\bsk_(?:live|test)_[A-Za-z0-9]{20,}\b""")
     private val providerCredentials = listOf(
         Triple(githubToken, "source.github_token", "رمز وصول GitHub محتمل"),
         Triple(slackToken, "source.slack_token", "رمز وصول Slack محتمل"),
-        Triple(googleApiKey, "source.google_api_key", "مفتاح Google API محتمل")
+        Triple(googleApiKey, "source.google_api_key", "مفتاح Google API محتمل"),
+        Triple(gitlabToken, "source.gitlab_token", "رمز وصول GitLab محتمل"),
+        Triple(npmToken, "source.npm_token", "رمز وصول npm محتمل"),
+        Triple(stripeSecret, "source.stripe_secret", "مفتاح Stripe سري محتمل")
     )
     private val debugEnabled = Regex("""(?i)android:debuggable\s*=\s*["']true["']|\bdebuggable\s*=\s*true""")
     private val cleartextEnabled = Regex("""(?i)usesCleartextTraffic\s*=\s*["']true["']""")

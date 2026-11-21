@@ -62,6 +62,24 @@ class ProjectSecurityScannerTest {
         assertTrue(findings.all { it.severity == ApkFindingSeverity.HIGH })
     }
 
+    @Test fun detectsGitLabNpmAndStripeCredentialsWithoutEchoingValues() {
+        val gitlab = "glpat-" + "G".repeat(24)
+        val npm = "npm_" + "N".repeat(36)
+        val stripe = "sk_live_" + "S".repeat(24)
+        val source = listOf(gitlab, npm, stripe).joinToString("\\n") { """credential = "$it"""" }
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/config.properties", source))
+        )
+        assertEquals(3, findings.size)
+        assertTrue(findings.any { it.id.startsWith("source.gitlab_token") })
+        assertTrue(findings.any { it.id.startsWith("source.npm_token") })
+        assertTrue(findings.any { it.id.startsWith("source.stripe_secret") })
+        listOf(gitlab, npm, stripe).forEach { token ->
+            assertTrue(findings.none { it.evidence.contains(token) })
+        }
+        assertTrue(findings.all { it.severity == ApkFindingSeverity.HIGH })
+    }
+
     @Test fun detectsPrivateKeyHeadersWithoutEchoingKeyMaterial() {
         val keyBody = "PRIVATE-KEY-BODY-DO-NOT-LOG"
         val findings = ProjectSecurityScanner.scan(
