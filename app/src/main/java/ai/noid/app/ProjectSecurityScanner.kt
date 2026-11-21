@@ -6,8 +6,8 @@ data class ProjectSourceFile(val relativePath: String, val content: String)
 
 object ProjectSecurityScanner {
     private val secretAssignment = Regex("""(?i)\b(api[_-]?key|client[_-]?secret|password|passwd|access[_-]?token)\b\s*[:=]\s*["']([^"']{8,})["']""")
-    private val bearerCredential = Regex("""(?i)\bAuthorization\s*[:=]\s*["']?\s*Bearer\s+[A-Za-z0-9._~+/=-]{8,}""")
-    private val privateKeyHeader = Regex("""-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----""")
+    private val bearerCredential = Regex("""(?i)\bAuthorization\b(?:["']?\s*\]?)?\s*(?:[:,=]|,\s*)\s*["']?\s*Bearer\s+[A-Za-z0-9._~+/=-]{8,}""")
+    private val privateKeyHeader = Regex("""-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----""")
     private val debugEnabled = Regex("""(?i)android:debuggable\s*=\s*["']true["']|\bdebuggable\s*=\s*true""")
     private val cleartextEnabled = Regex("""(?i)usesCleartextTraffic\s*=\s*["']true["']""")
     private val javascriptEnabled = Regex("""setJavaScriptEnabled\s*\(\s*true\s*\)""")
