@@ -8,6 +8,31 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
+internal class ApplyVerificationException : IOException()
+
+/**
+ * A successful write must be rolled back if its read-back cannot be verified.
+ * Cancellation is special: rollback runs non-cancellably before cancellation escapes.
+ */
+internal suspend fun <T> readBackWithRollback(
+    readBack: suspend () -> T,
+    rollback: suspend () -> Unit
+): T {
+    return try {
+        readBack()
+    } catch (cancelled: CancellationException) {
+        try {
+            withContext(NonCancellable) { rollback() }
+        } catch (rollbackFailure: Exception) {
+            cancelled.addSuppressed(rollbackFailure)
+        }
+        throw cancelled
+    } catch (_: Exception) {
+        rollback()
+        throw ApplyVerificationException()
+    }
+}
+
 sealed interface SelfDevelopmentApplyResult {
     data class Applied(
         val backup: ProjectFileBackup,
@@ -131,26 +156,14 @@ class SelfDevelopmentApplyCoordinator(
                     )
                 }
 
-                val writtenContent = try {
-                    withContext(Dispatchers.IO) {
-                        files.readText(initialSelection.uri, proposal.relativePath)
-                    }
-                } catch (cancelled: CancellationException) {
-                    // The write has completed, but cancellation interrupted read-back verification.
-                    // Attempt rollback in a non-cancellable section before recording the operation
-                    // as interrupted; otherwise a cancelled apply could leave an unverified edit.
-                    try {
-                        withContext(NonCancellable) {
-                            rollbackOrFail(initialSelection.uri, backup)
+                val writtenContent = readBackWithRollback(
+                    readBack = {
+                        withContext(Dispatchers.IO) {
+                            files.readText(initialSelection.uri, proposal.relativePath)
                         }
-                    } catch (rollbackFailure: Exception) {
-                        cancelled.addSuppressed(rollbackFailure)
-                    }
-                    throw cancelled
-                } catch (_: Exception) {
-                    rollbackOrFail(initialSelection.uri, backup)
-                    throw ApplyVerificationException()
-                }
+                    },
+                    rollback = { rollbackOrFail(initialSelection.uri, backup) }
+                )
                 if (SelfDevelopmentProposalRepository.sha256(writtenContent) != proposal.proposedSha256) {
                     rollbackOrFail(initialSelection.uri, backup)
                     throw ApplyVerificationException()
