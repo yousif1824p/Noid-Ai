@@ -72,7 +72,20 @@ class OllamaEngineTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 httpx.AsyncClient = original
 
-    async def test_rejects_oversized_unterminated_provider_line(self):\n        engine = OllamaTextEngine("http://127.0.0.1:11434", "test")\n        client = httpx.AsyncClient(transport=httpx.MockTransport(\n            lambda request: httpx.Response(200, stream=Lines(b"x" * (engine.MAX_LINE_BYTES + 1)))\n        ))\n        original = httpx.AsyncClient\n        try:\n            httpx.AsyncClient = lambda **kwargs: client\n            with self.assertRaises(EngineUnavailable):\n                _ = [part async for part in engine.stream([{"role": "user", "content": "Hi"}])]\n        finally:\n            httpx.AsyncClient = original\n\n    async def test_rejects_non_success_provider_status(self):
+    async def test_rejects_oversized_unterminated_provider_line(self):
+        engine = OllamaTextEngine("http://127.0.0.1:11434", "test")
+        client = httpx.AsyncClient(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, stream=Lines(b"x" * (engine.MAX_LINE_BYTES + 1)))
+        ))
+        original = httpx.AsyncClient
+        try:
+            httpx.AsyncClient = lambda **kwargs: client
+            with self.assertRaises(EngineUnavailable):
+                _ = [part async for part in engine.stream([{"role": "user", "content": "Hi"}])]
+        finally:
+            httpx.AsyncClient = original
+
+    async def test_rejects_non_success_provider_status(self):
         engine = OllamaTextEngine("http://127.0.0.1:11434", "test")
         async def handler(request):
             return httpx.Response(503)
