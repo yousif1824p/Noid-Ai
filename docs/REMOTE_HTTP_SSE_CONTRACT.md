@@ -43,6 +43,7 @@ Accepts a bounded JSON request. Initial proposed limits:
 - Request body: 1 MiB maximum.
 - User text: 32,000 Unicode characters maximum.
 - Conversation context: 20 messages maximum and 64 KiB combined text maximum.
+- Active generations: at most four per server process; additional valid requests receive HTTP 429 with the stable `rate_limited` error code until a slot is released.
 - Client-generated request ID: opaque, non-secret, maximum 64 characters.
 - No image, audio, file, or other binary upload by default. Future media transfer requires a separate opt-in, explicit per-request consent, content-type allowlist, and independent size limits.
 
