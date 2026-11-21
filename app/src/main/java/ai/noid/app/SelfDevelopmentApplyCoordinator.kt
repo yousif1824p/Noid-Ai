@@ -136,6 +136,16 @@ class SelfDevelopmentApplyCoordinator(
                         files.readText(initialSelection.uri, proposal.relativePath)
                     }
                 } catch (cancelled: CancellationException) {
+                    // The write has completed, but cancellation interrupted read-back verification.
+                    // Attempt rollback in a non-cancellable section before recording the operation
+                    // as interrupted; otherwise a cancelled apply could leave an unverified edit.
+                    try {
+                        withContext(NonCancellable) {
+                            rollbackOrFail(initialSelection.uri, backup)
+                        }
+                    } catch (rollbackFailure: Exception) {
+                        cancelled.addSuppressed(rollbackFailure)
+                    }
                     throw cancelled
                 } catch (_: Exception) {
                     rollbackOrFail(initialSelection.uri, backup)
