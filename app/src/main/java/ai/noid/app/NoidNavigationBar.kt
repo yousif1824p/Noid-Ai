@@ -17,6 +17,7 @@ enum class NoidDestination(val label: String) {
     CHAT("المحادثة"),
     MEMORY("الذاكرة"),
     LEARNING("التعلّم"),
+    SELF_DEVELOPMENT("تطوير NOID"),
     APK_INSPECTION("فحص APK"),
     PROJECT_SCAN("فحص مشروع"),
     PROJECT_FILES("ملفات المشروع"),

@@ -38,6 +38,7 @@ class NoidNavigationBarTest {
         composeRule.onNodeWithText("الذاكرة").assertIsSelected()
         composeRule.onNodeWithText("فحص APK").assertIsNotSelected()
         composeRule.onNodeWithText("التعلّم").assertExists()
+        composeRule.onNodeWithText("تطوير NOID").assertExists()
     }
 
     @Test

@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
         val chatRepository = ChatRepository(database.chatMessageDao())
         val memoryRepository = MemoryRepository(database.userMemoryDao())
         val learningRepository = LearningRepository(database.learningRecordDao())
+        val selfDevelopmentRepository = SelfDevelopmentProposalRepository(database.selfDevelopmentProposalDao())
         val toolAuditRepository = ToolAuditRepository(database.toolAuditDao())
         val selectedProjectTree = SelectedProjectTreeSession()
         val toolExecutionCoordinator = ToolExecutionCoordinator()
@@ -145,6 +146,10 @@ class MainActivity : ComponentActivity() {
             this,
             LearningViewModelFactory(learningRepository)
         )[LearningViewModel::class.java]
+        val selfDevelopmentReviewViewModel = ViewModelProvider(
+            this,
+            SelfDevelopmentReviewViewModelFactory(selfDevelopmentRepository)
+        )[SelfDevelopmentReviewViewModel::class.java]
 
         setContent {
             val colors = darkColorScheme(
@@ -159,6 +164,7 @@ class MainActivity : ComponentActivity() {
                     viewModel = chatViewModel,
                     memoryViewModel = memoryViewModel,
                     learningViewModel = learningViewModel,
+                    selfDevelopmentReviewViewModel = selfDevelopmentReviewViewModel,
                     toolAuditRepository = toolAuditRepository,
                     toolRegistry = toolRegistry,
                     engine = engine,
@@ -195,6 +201,7 @@ private fun NoidChatScreen(
     viewModel: ChatViewModel,
     memoryViewModel: MemoryViewModel,
     learningViewModel: LearningViewModel,
+    selfDevelopmentReviewViewModel: SelfDevelopmentReviewViewModel,
     toolAuditRepository: ToolAuditRepository,
     toolRegistry: ToolRegistry,
     engine: LiteRtLmAssistantEngine,
@@ -215,6 +222,7 @@ private fun NoidChatScreen(
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showMemoryScreen by remember { mutableStateOf(false) }
     var showLearningScreen by remember { mutableStateOf(false) }
+    var showSelfDevelopmentScreen by remember { mutableStateOf(false) }
     var showSecurityScreen by remember { mutableStateOf(false) }
     var showProjectScanScreen by remember { mutableStateOf(false) }
     var showProjectFilesScreen by remember { mutableStateOf(false) }
@@ -281,6 +289,7 @@ private fun NoidChatScreen(
                             when {
                                 showMemoryScreen -> "ذاكرة يتحكم بها المستخدم"
                                 showLearningScreen -> "معرفة يراجعها المستخدم"
+                                showSelfDevelopmentScreen -> "مراجعة مقترحات تغييرات المشروع"
                                 showSecurityScreen -> "تحليل أمني ثابت لملفات APK"
                                 showProjectScanScreen -> "فحص ملفات مشروع تختاره"
                                 showProjectFilesScreen -> "تصفح وتعديل ملفات المشروع"
@@ -300,6 +309,7 @@ private fun NoidChatScreen(
                 val selectedDestination = when {
                     showMemoryScreen -> NoidDestination.MEMORY
                     showLearningScreen -> NoidDestination.LEARNING
+                    showSelfDevelopmentScreen -> NoidDestination.SELF_DEVELOPMENT
                     showSecurityScreen -> NoidDestination.APK_INSPECTION
                     showProjectScanScreen -> NoidDestination.PROJECT_SCAN
                     showProjectFilesScreen -> NoidDestination.PROJECT_FILES
@@ -318,6 +328,7 @@ private fun NoidChatScreen(
                         val next = if (destination == selectedDestination) NoidDestination.CHAT else destination
                         showMemoryScreen = next == NoidDestination.MEMORY
                         showLearningScreen = next == NoidDestination.LEARNING
+                        showSelfDevelopmentScreen = next == NoidDestination.SELF_DEVELOPMENT
                         showSecurityScreen = next == NoidDestination.APK_INSPECTION
                         showProjectScanScreen = next == NoidDestination.PROJECT_SCAN
                         showProjectFilesScreen = next == NoidDestination.PROJECT_FILES
@@ -336,6 +347,8 @@ private fun NoidChatScreen(
                 MemoryManagementScreen(viewModel = memoryViewModel)
             } else if (showLearningScreen) {
                 LearningScreen(viewModel = learningViewModel)
+            } else if (showSelfDevelopmentScreen) {
+                SelfDevelopmentReviewScreen(viewModel = selfDevelopmentReviewViewModel)
             } else if (showSecurityScreen) {
                 ApkInspectionScreen(toolRegistry = toolRegistry)
             } else if (showProjectScanScreen) {

@@ -138,7 +138,7 @@ Each stage must be tested and reviewed before proceeding. Checklist items are no
 
 ## Stage 3A — self-development proposal foundation
 - [x] Add a dedicated Room proposal record, DAO, bounded repository, original/proposed SHA-256 fingerprints, conditional pending-review transitions, and non-destructive v4-to-v5 migration with repository and Room DAO tests. This stores proposals only; approval never writes project files.
-- [ ] Add the proposal review screen and connect model output to the strict proposal repository.
+- [x] Add and wire the Compose proposal review screen, ViewModel, pending/history list, bounded diff and snapshot previews, and explicit approve/reject actions; approval never applies a file change.\n- [ ] Connect model output to proposal creation through a strict bounded schema and app-owned selected-project context.
 - [ ] Add stale-source detection by re-reading the exact SAF file and comparing its current SHA-256 before any apply attempt.
 - [ ] Add an explicit, audited, backup-backed apply flow through the existing ToolRegistry; approval alone must never authorize a file write.
 - [ ] Add end-to-end tests for stale snapshots, revoked SAF grants, failed pre-audit, cancellation, rollback, and duplicate apply attempts.
