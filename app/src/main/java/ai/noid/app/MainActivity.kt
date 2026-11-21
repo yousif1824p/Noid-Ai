@@ -92,10 +92,11 @@ class MainActivity : ComponentActivity() {
             )
         )
         toolRegistry.register(
-            ProjectFileEditToolAdapter(
+            SelfDevelopmentProposalToolAdapter(
                 applicationContext,
                 selectedProjectTree,
-                projectFileRepository
+                projectFileRepository,
+                selfDevelopmentRepository
             )
         )
         toolRegistry.register(
