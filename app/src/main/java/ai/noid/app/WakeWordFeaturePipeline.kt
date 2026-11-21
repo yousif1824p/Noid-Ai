@@ -27,6 +27,17 @@ internal class WakeWordFeaturePipeline(
         fun extract(samples: FloatArray): FloatArray =
             pipeline.extract(samples, hannWindow, melFilterbank)
 
+        /** Creates an isolated streaming session with fresh filter state. */
+        @Synchronized
+        fun newStreamingSession(): WakeWordStreamingFeaturePipeline =
+            WakeWordStreamingFeaturePipeline(
+                pipeline.highPass.freshCopy(),
+                pipeline.notch50Hz.freshCopy(),
+                pipeline.notch60Hz.freshCopy(),
+                hannWindow.copyOf(),
+                melFilterbank.copyOf()
+            )
+
         @Synchronized
         fun reset() = pipeline.reset()
     }
@@ -40,13 +51,9 @@ internal class WakeWordFeaturePipeline(
         require(samples.size == WakeWordStftMelCmn.SAMPLE_COUNT) {
             "Expected exactly one second of 16 kHz mono audio"
         }
-        // Validate before any stateful SOS stage runs. Otherwise a NaN/Inf
-        // sample can poison retained filter state even though extraction fails.
         require(samples.all(Float::isFinite)) {
             "Audio contains non-finite samples"
         }
-        // Validate every stateless DSP input before advancing any retained SOS
-        // state. A bad window/filterbank must not partially consume this chunk.
         require(hannWindow.size == WakeWordStftMelCmn.WINDOW_SIZE &&
             hannWindow.all { it.isFinite() && it in 0f..1f }) {
             "Invalid Hann window"
@@ -82,11 +89,6 @@ internal class WakeWordFeaturePipeline(
             "mel_filterbank" to listOf(40, 257)
         )
 
-        /**
-         * Creates a runnable preprocessor only from the exact payload accepted
-         * by WakeWordDspArtifactParser. The whole-payload digest is rechecked
-         * here so metadata cannot accidentally be paired with another payload.
-         */
         fun fromValidatedArtifact(
             payload: ByteArray,
             artifact: WakeWordDspArtifactParser.Artifact
