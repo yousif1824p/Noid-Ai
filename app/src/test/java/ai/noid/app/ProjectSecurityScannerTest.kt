@@ -35,7 +35,7 @@ class ProjectSecurityScannerTest {
             listOf(ProjectSourceFile("app/keys.pem", "-----BEGIN PRIVATE KEY-----\n$keyBody"))
         )
         val finding = findings.single { it.id.startsWith("source.private_key_material") }
-        assertEquals(ApkFindingSeverity.CRITICAL, finding.severity)
+        assertEquals(ApkFindingSeverity.HIGH, finding.severity)
         assertFalse(finding.evidence.contains(keyBody))
         assertTrue(finding.evidence.contains("تم حجب محتوى المفتاح"))
     }

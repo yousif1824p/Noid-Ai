@@ -64,7 +64,7 @@ object ProjectSecurityScanner {
                     ApkFindingConfidence.LOW
                 )
                 if (privateKeyHeader.containsMatchIn(line)) add(
-                    "source.private_key_material", ApkFindingSeverity.CRITICAL,
+                    "source.private_key_material", ApkFindingSeverity.HIGH,
                     "ترويسة مادة مفتاح خاص داخل المصدر",
                     "عُثر على ترويسة PEM لمفتاح خاص. افترض أن المفتاح قد انكشف إذا كان حقيقياً.",
                     "$path:$lineNumber: تم حجب محتوى المفتاح.",
