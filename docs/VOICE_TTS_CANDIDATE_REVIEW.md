@@ -43,3 +43,11 @@ Use only the Modern Standard Arabic corpus in `docs/VOICE_TTS_AUDITION_CORPUS.md
 - SILMA TTS v1: https://huggingface.co/silma-ai/silma-tts
 - Habibi-TTS: https://github.com/SWivid/Habibi-TTS
 - Audar-TTS-V1-Flash: https://huggingface.co/audarai/Audar-TTS-V1-Flash
+
+
+## Verification delta — 21 November 2026
+
+- SILMA's MSA support and Apache-2.0 model-weight claim are confirmed by its public model materials, but its published performance figures are not Android benchmarks. Its Python/F5-TTS inference path and voice-cloning feature do not prove local Android compatibility or a gender-ambiguous identity.
+- Habibi's exact MSA checkpoint must be license-checked at the pinned artifact revision. The model-card prose distinguishes MSA as an Apache-2.0 variant, while repository-level metadata may display a broader license label. Do not download or integrate until the exact checkpoint's license files and upstream terms are reconciled.
+- Do not use a real person's recording as reference audio. If a reference-conditioned model cannot produce a purpose-created synthetic identity that passes blind listening, reject it rather than choosing a gender-coded stock voice.
+- No candidate has passed the required audition, identity, resource, or Android runtime gates. Keep the app's TTS status NotConfigured.

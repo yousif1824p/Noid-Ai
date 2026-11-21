@@ -76,3 +76,21 @@ A candidate may move to integration only after:
 - cancellation, offline behavior, and privacy boundaries are tested.
 
 Until then, `SpeechOutputEngine` remains a contract only and `VoiceSetupScreen` must continue to state that TTS is not configured.
+
+
+## Verification delta — 21 November 2026
+
+A fresh check of the upstream SILMA pages confirms MSA support and the stated 150M parameter size. The public materials expose multiple performance figures: the Hugging Face model card reports an RTX 4090 real-time-factor claim, while SILMA's model page reports 1.9 seconds for 100 characters. These are vendor/model-page figures from different contexts, not comparable Android measurements. Record them only as claims; do not use them to estimate target-phone latency or RAM.
+
+SILMA's public inference instructions use its Python package and the F5-TTS ecosystem. The Apache-2.0 weight license and MIT code license are promising for a candidate, but do not establish a supported Android/ARM64 runtime or a neutral voice identity. Its voice-cloning feature must not be used with an identifiable person's recording.
+
+The Habibi MSA checkpoint needs a stricter license check than the repository-level label suggests. The model card text distinguishes MSA and several specialized checkpoints as Apache-2.0 while the Hugging Face repository metadata can show a broader CC-BY-NC-SA label. Before any download or integration, pin the exact MSA checkpoint revision and inspect the license files and upstream terms attached to that exact artifact. Do not treat a repository-wide metadata badge as sufficient evidence.
+
+Neither candidate currently demonstrates NOID's intentionally synthetic, gender-ambiguous identity. Reference-conditioned F5-TTS workflows inherit substantial timbre characteristics from their reference audio. A neutral identity must be created and assessed deliberately; it cannot be inferred from MSA coverage, parameter count, or voice-cloning support.
+
+Sources checked on 21 November 2026:
+- SILMA official repository and model card: https://github.com/SILMA-AI/silma-tts and https://huggingface.co/silma-ai/silma-tts
+- SILMA official open-source model overview: https://silma.ai/open-source-arabic-tts-models
+- Habibi MSA checkpoint directory: https://huggingface.co/SWivid/Habibi-TTS/tree/main/Specialized/MSA
+
+Updated decision: keep SILMA as the small MSA baseline and Habibi MSA as a comparison candidate only. No voice, model, or runtime is approved. No weights are downloaded, no real speaker reference is permitted, and Android integration remains blocked on exact license review, blind MSA audition, synthetic-identity validation, and measured target-device performance.
