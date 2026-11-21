@@ -201,4 +201,14 @@ class ProjectSecurityScannerTest {
         )
         assertTrue(findings.isEmpty())
     }
+
+    @Test fun skipsUtf8OversizedSourceWithoutDependingOnCharacterCount() {
+        val maxBytes = ProjectFilePolicy.MAX_TEXT_FILE_BYTES.toInt()
+        val multibyte = "ع".repeat(maxBytes / 2 + 1)
+        assertTrue(multibyte.length < maxBytes)
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/config.properties", multibyte))
+        )
+        assertTrue(findings.isEmpty())
+    }
 }
