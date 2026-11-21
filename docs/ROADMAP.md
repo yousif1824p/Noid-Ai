@@ -82,7 +82,7 @@ Voice features are intentionally retained as optional future work and are not pa
 - [x] Add a read-only audit history screen with search, decision labels, timestamps, and accurate coverage disclosure.
 - [x] Record authorized APK manifest inspection outcomes in the local audit history without storing APK contents.
 - [x] Add audit repository unit tests for persistence, bounded event details, and non-fatal database failure handling.
-- [x] Extend audit logging and confirmation gates to all remaining executable adapters; `ToolRegistryTest` verifies each of the twelve user workflow actions for exact capability grants, failed start-audit fail-closed behavior, operation-failure redaction, and cancellation audit; sensitive/destructive confirmation is separately tested.
+- [x] Extend audit logging and confirmation gates to all remaining executable adapters; `ToolRegistryTest` verifies each of the thirteen user workflow actions for exact capability grants, failed start-audit fail-closed behavior, operation-failure redaction, and cancellation audit; sensitive/destructive confirmation is separately tested.
 
 - [x] Add regression tests for vision response duplicate-completion rejection and exact output-bound acceptance, plus fail-closed rejection of invalid Android API levels in microphone-service preflight.
 
@@ -138,7 +138,8 @@ Each stage must be tested and reviewed before proceeding. Checklist items are no
 
 ## Stage 3A — self-development proposal foundation
 - [x] Add a dedicated Room proposal record, DAO, bounded repository, original/proposed SHA-256 fingerprints, conditional pending-review transitions, and non-destructive v4-to-v5 migration with repository and Room DAO tests. This stores proposals only; approval never writes project files.
-- [x] Add and wire the Compose proposal review screen, ViewModel, pending/history list, bounded diff and snapshot previews, and explicit approve/reject actions; approval never applies a file change.\n- [ ] Connect model output to proposal creation through a strict bounded schema and app-owned selected-project context.
-- [ ] Add stale-source detection by re-reading the exact SAF file and comparing its current SHA-256 before any apply attempt.
-- [ ] Add an explicit, audited, backup-backed apply flow through the existing ToolRegistry; approval alone must never authorize a file write.
+- [x] Add and wire the Compose proposal review screen, ViewModel, pending/history list, bounded diff and snapshot previews, and explicit approve/reject actions; approval never applies a file change.
+- [x] Connect model output to proposal creation through a strict bounded schema and app-owned selected-project context. Verified: `SelfDevelopmentProposalToolAdapter` is registered in `MainActivity`, binds only the app-owned active project selection, and validates the bounded schema before storing a review-only proposal.
+- [x] Add stale-source detection by re-reading the exact SAF file and comparing its current SHA-256 before any apply attempt. Verified: `SelfDevelopmentApplyCoordinator` re-reads the exact selected SAF document and compares SHA-256 immediately before the write; freshness policy tests cover changed, missing, revoked, unreadable, malformed-hash, and cancelled reads.
+- [x] Add an explicit, audited, backup-backed apply flow through the existing ToolRegistry; approval alone must never authorize a file write. Verified in implementation: single-claim approved proposal, exact project selection, current SAF grants, pre-execution audit, backup-backed write, post-write hash verification, rollback attempt, and interrupted-state handling. Full provider-level E2E tests remain a separate pending item.
 - [ ] Add end-to-end tests for stale snapshots, revoked SAF grants, failed pre-audit, cancellation, rollback, and duplicate apply attempts.
