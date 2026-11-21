@@ -166,7 +166,7 @@ class ProjectSecurityScannerTest {
     }
 
     @Test fun preservesFindingLimitAndSkippedFileWarningForNoisyProjects() {
-        val source = (1..6_000).joinToString("\\n") { "android:debuggable=true" }
+        val source = (1..6_000).joinToString("\n") { "android:debuggable=true" }
         val findings = ProjectSecurityScanner.scan(
             listOf(ProjectSourceFile("app/src/main/AndroidManifest.xml", source)),
             skippedFiles = 2
