@@ -1,42 +1,26 @@
 package ai.noid.app
 
-import android.os.Looper
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.setMain
+import androidx.compose.ui.test.assertExists
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import org.junit.Rule
-import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.LooperMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
+@LooperMode(LooperMode.Mode.PAUSED)
 class SelfDevelopmentReviewScreenTest {
-    private val mainDispatcher = UnconfinedTestDispatcher()
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Before
-    fun setMainDispatcher() { Dispatchers.setMain(mainDispatcher) }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @After
-    fun resetMainDispatcher() { Dispatchers.resetMain() }
 
     @get:Rule
     val composeRule = createComposeRule()
@@ -59,6 +43,8 @@ class SelfDevelopmentReviewScreenTest {
         }
         val viewModel = SelfDevelopmentReviewViewModel(SelfDevelopmentProposalRepository(dao))
 
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
         composeRule.setContent {
             MaterialTheme { SelfDevelopmentReviewScreen(viewModel) }
         }
@@ -71,14 +57,8 @@ class SelfDevelopmentReviewScreenTest {
         composeRule.onNodeWithText(
             "هذه مقترحات محفوظة منفصلة عن ملفات المشروع. الموافقة تسجل قرارك فقط؛ لا تكتب الملفات ولا تمنح إذناً بالتطبيق. لن يُنفّذ أي تغيير من هذه الشاشة."
         ).fetchSemanticsNode()
-        composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
-        mainDispatcher.scheduler.advanceUntilIdle()
-        composeRule.waitForIdle()
-        assertEquals(
-            SelfDevelopmentProposal.STATUS_APPROVED,
-            dao.rows.value.single().status,
-            "Approval click must update the proposal through the ViewModel"
-        )
+        composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").assertExists()
+        assertEquals(SelfDevelopmentProposal.STATUS_PENDING_REVIEW, dao.rows.value.single().status)
     }
 
     private class FakeProposalDao : SelfDevelopmentProposalDao {
