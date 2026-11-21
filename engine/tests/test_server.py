@@ -327,3 +327,172 @@ class RemoteEngineAdversarialPayloadTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RemoteEngineTransportBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    def make_client(self, engine=None):
+        return httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=create_app(engine=engine, token="test-secret")),
+            base_url="http://noid.test",
+        )
+
+    def headers(self):
+        return {"Authorization": "Bearer test-secret"}
+
+    async def test_malformed_json_is_rejected_without_starting_engine(self):
+        engine = FakeEngine()
+        async with self.make_client(engine) as client:
+            response = await client.post(
+                "/v1/chat", headers=self.headers(), content=b'{"request_id":'
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "invalid_request")
+
+    async def test_invalid_utf8_json_is_rejected(self):
+        async with self.make_client(FakeEngine()) as client:
+            response = await client.post(
+                "/v1/chat",
+                headers={**self.headers(), "Content-Type": "application/json"},
+                content=b'{"request_id":"bad-utf8","messages":[{"role":"user","content":"\xff"}]}',
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "invalid_request")
+
+    async def test_non_numeric_content_length_is_rejected(self):
+        async with self.make_client(FakeEngine()) as client:
+            response = await client.post(
+                "/v1/chat",
+                headers={**self.headers(), "Content-Length": "not-a-number"},
+                content=b"{}",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "invalid_request")
+
+    async def test_streamed_body_limit_is_enforced_without_content_length(self):
+        async def oversized_body():
+            yield b'{"request_id":"oversized","messages":[]}'
+            yield b" " * MAX_BODY_BYTES
+
+        async with self.make_client(FakeEngine()) as client:
+            response = await client.post(
+                "/v1/chat", headers=self.headers(), content=oversized_body()
+            )
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(response.json()["error_code"], "request_too_large")
+
+    async def test_cancel_endpoint_requires_authentication(self):
+        async with self.make_client(FakeEngine()) as client:
+            response = await client.delete("/v1/chat/req-protected")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error_code"], "unauthorized")
+
+    async def test_active_cancellation_emits_one_terminal_error(self):
+        engine = SingleBlockingEngine()
+        async with self.make_client(engine) as client:
+            payload = {
+                "request_id": "req-cancel-terminal",
+                "messages": [{"role": "user", "content": "wait"}],
+            }
+            pending = asyncio.create_task(
+                client.post("/v1/chat", headers=self.headers(), json=payload)
+            )
+            await asyncio.wait_for(engine.started.wait(), timeout=2)
+            cancelled = await client.delete(
+                "/v1/chat/req-cancel-terminal", headers=self.headers()
+            )
+            response = await asyncio.wait_for(pending, timeout=2)
+
+        self.assertEqual(cancelled.status_code, 200)
+        self.assertIn('"status":"cancellation_requested"', cancelled.text)
+        self.assertEqual(response.text.count('"error_code":"cancelled"'), 1)
+        self.assertNotIn("event: completed", response.text)
+
+    async def test_request_id_can_be_reused_after_cancelled_stream_finishes(self):
+        class CancelThenRecoverEngine:
+            def __init__(self):
+                self.calls = 0
+                self.started = asyncio.Event()
+
+            async def stream(self, messages):
+                self.calls += 1
+                if self.calls == 1:
+                    self.started.set()
+                    await asyncio.Event().wait()
+                yield "recovered"
+
+        engine = CancelThenRecoverEngine()
+        async with self.make_client(engine) as client:
+            payload = {
+                "request_id": "req-reuse-after-cancel",
+                "messages": [{"role": "user", "content": "hello"}],
+            }
+            pending = asyncio.create_task(
+                client.post("/v1/chat", headers=self.headers(), json=payload)
+            )
+            await asyncio.wait_for(engine.started.wait(), timeout=2)
+            await client.delete(
+                "/v1/chat/req-reuse-after-cancel", headers=self.headers()
+            )
+            cancelled_response = await asyncio.wait_for(pending, timeout=2)
+            recovered = await client.post(
+                "/v1/chat", headers=self.headers(), json=payload
+            )
+
+        self.assertIn('"error_code":"cancelled"', cancelled_response.text)
+        self.assertIn("event: completed", recovered.text)
+        self.assertIn('"text":"recovered"', recovered.text)
+        self.assertEqual(engine.calls, 2)
+
+    async def test_empty_and_non_string_backend_fragments_are_ignored(self):
+        class NoisyEngine:
+            async def stream(self, messages):
+                yield ""
+                yield None
+                yield 17
+                yield "valid"
+
+        async with self.make_client(NoisyEngine()) as client:
+            response = await client.post(
+                "/v1/chat",
+                headers=self.headers(),
+                json={"request_id": "req-noisy-backend", "messages": [
+                    {"role": "user", "content": "hello"}
+                ]},
+            )
+        self.assertIn('"text":"valid"', response.text)
+        self.assertEqual(response.text.count("event: delta"), 1)
+        self.assertIn("event: completed", response.text)
+
+    async def test_large_backend_fragment_is_split_into_bounded_deltas(self):
+        from noid_engine.server import MAX_DELTA_CHARS
+
+        fragment = "ع" * (MAX_DELTA_CHARS + 1)
+        async with self.make_client(FakeEngine((fragment,))) as client:
+            response = await client.post(
+                "/v1/chat",
+                headers=self.headers(),
+                json={"request_id": "req-delta-bound", "messages": [
+                    {"role": "user", "content": "hello"}
+                ]},
+            )
+        frames = [part for part in response.text.split("\n\n") if part.strip()]
+        delta_payloads = [
+            json.loads(next(line[6:] for line in frame.splitlines() if line.startswith("data: ")))
+            for frame in frames
+            if frame.startswith("event: delta")
+        ]
+        self.assertEqual([len(item["text"]) for item in delta_payloads], [MAX_DELTA_CHARS, 1])
+        self.assertEqual([item["sequence"] for item in delta_payloads], [2, 3])
+
+    async def test_cancellation_of_unknown_id_does_not_create_active_state(self):
+        async with self.make_client(FakeEngine()) as client:
+            first = await client.delete(
+                "/v1/chat/req-never-started", headers=self.headers()
+            )
+            second = await client.delete(
+                "/v1/chat/req-never-started", headers=self.headers()
+            )
+        self.assertEqual(first.status_code, 404)
+        self.assertEqual(second.status_code, 404)
+        self.assertEqual(first.json()["error_code"], "unavailable")
+        self.assertEqual(second.json()["error_code"], "unavailable")
