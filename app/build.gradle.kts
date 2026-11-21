@@ -102,7 +102,6 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     // Use a real JVM JSON implementation instead of Android's mocked org.json stubs.
     testImplementation("org.json:json:20240303")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
