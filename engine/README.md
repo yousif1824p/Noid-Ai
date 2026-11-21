@@ -26,4 +26,4 @@ The example binds to loopback. For deployment, terminate TLS at a correctly conf
 
 ## Explicit limitation
 
-The HTTP/SSE server and protocol boundary are implemented; a production inference provider, TLS deployment, persistent cancellation across workers, and live Android-to-server interoperability are not yet configured or verified. The default app reports unavailable until a real provider is installed.
+The HTTP/SSE server and loopback-only Ollama adapter are implemented. A model must already be installed and selected on the server host; model quality, deployment TLS, multi-worker cancellation, and live Android-to-server interoperability are not yet verified. The default app reports unavailable until a real provider is installed.
