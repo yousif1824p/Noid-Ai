@@ -117,11 +117,15 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
                     return _error_response("request_too_large", 413)
             except ValueError:
                 return _error_response("invalid_request", 400)
-        raw = await request.body()
-        if not raw or len(raw) > MAX_BODY_BYTES:
-            return _error_response("request_too_large" if len(raw) > MAX_BODY_BYTES else "invalid_request", 413 if len(raw) > MAX_BODY_BYTES else 400)
+        raw = bytearray()
+        async for chunk in request.stream():
+            raw.extend(chunk)
+            if len(raw) > MAX_BODY_BYTES:
+                return _error_response("request_too_large", 413)
+        if not raw:
+            return _error_response("invalid_request", 400)
         try:
-            payload = json.loads(raw)
+            payload = json.loads(bytes(raw))
         except (UnicodeDecodeError, json.JSONDecodeError):
             return _error_response("invalid_request", 400)
         validated = _validate_payload(payload)
