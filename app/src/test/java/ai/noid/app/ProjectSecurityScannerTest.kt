@@ -154,7 +154,7 @@ class ProjectSecurityScannerTest {
         assertEquals(ApkFindingConfidence.HIGH, finding.confidence)
         assertTrue(finding.description.contains("لا تمثل النتائج مراجعة كاملة"))
         assertTrue(finding.evidence.contains("3"))
-        assertTrue(finding.recommendation.contains("الملفات المتجاوزة"))
+        assertTrue(finding.recommendation.contains("العناصر المتجاوزة"))
     }
 
     @Test fun doesNotReportSkippedFilesWhenNoneWereSkipped() {
