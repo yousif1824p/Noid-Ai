@@ -6,6 +6,8 @@ data class ProjectSourceFile(val relativePath: String, val content: String)
 
 object ProjectSecurityScanner {
     private val secretAssignment = Regex("""(?i)\b(api[_-]?key|client[_-]?secret|password|passwd|access[_-]?token)\b\s*[:=]\s*["']([^"']{8,})["']""")
+    private val bearerCredential = Regex("""(?i)\bAuthorization\s*[:=]\s*["']?\s*Bearer\s+[A-Za-z0-9._~+/=-]{8,}""")
+    private val privateKeyHeader = Regex("""-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----""")
     private val debugEnabled = Regex("""(?i)android:debuggable\s*=\s*["']true["']|\bdebuggable\s*=\s*true""")
     private val cleartextEnabled = Regex("""(?i)usesCleartextTraffic\s*=\s*["']true["']""")
     private val javascriptEnabled = Regex("""setJavaScriptEnabled\s*\(\s*true\s*\)""")
@@ -53,6 +55,21 @@ object ProjectSecurityScanner {
                         ApkFindingConfidence.LOW
                     )
                 }
+                if (bearerCredential.containsMatchIn(line)) add(
+                    "source.bearer_token", ApkFindingSeverity.HIGH,
+                    "احتمال وجود رمز وصول Bearer ثابت",
+                    "عُثر على ترويسة Authorization تحتوي بيانات اعتماد Bearer؛ قد تكون مطابقة كاذبة.",
+                    "$path:$lineNumber: تم حجب بيانات الاعتماد.",
+                    "أزل الرمز من المصدر وألغِه إذا كان حقيقياً، واستخدم مخزناً آمناً للأسرار.",
+                    ApkFindingConfidence.LOW
+                )
+                if (privateKeyHeader.containsMatchIn(line)) add(
+                    "source.private_key_material", ApkFindingSeverity.CRITICAL,
+                    "ترويسة مادة مفتاح خاص داخل المصدر",
+                    "عُثر على ترويسة PEM لمفتاح خاص. افترض أن المفتاح قد انكشف إذا كان حقيقياً.",
+                    "$path:$lineNumber: تم حجب محتوى المفتاح.",
+                    "أزل المفتاح من المستودع، وألغِه أو دوّره، وخزّنه خارج المصدر."
+                )
                 if (debugEnabled.containsMatchIn(line)) add(
                     "source.debuggable", ApkFindingSeverity.MEDIUM,
                     "التصحيح مفعّل في إعداد أو Manifest",

@@ -17,6 +17,29 @@ class ProjectSecurityScannerTest {
         assertTrue(finding.evidence.contains("[REDACTED]"))
     }
 
+
+    @Test fun detectsBearerCredentialsWithoutEchoingTheToken() {
+        val token = "eyJhbGciOiJIUzI1NiJ9.fake-payload.signature"
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/config.properties", """Authorization: Bearer $token"""))
+        )
+        val finding = findings.single { it.id.startsWith("source.bearer_token") }
+        assertEquals(ApkFindingSeverity.HIGH, finding.severity)
+        assertFalse(finding.evidence.contains(token))
+        assertTrue(finding.evidence.contains("تم حجب بيانات الاعتماد"))
+    }
+
+    @Test fun detectsPrivateKeyHeadersWithoutEchoingKeyMaterial() {
+        val keyBody = "PRIVATE-KEY-BODY-DO-NOT-LOG"
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/keys.pem", "-----BEGIN PRIVATE KEY-----\n$keyBody"))
+        )
+        val finding = findings.single { it.id.startsWith("source.private_key_material") }
+        assertEquals(ApkFindingSeverity.CRITICAL, finding.severity)
+        assertFalse(finding.evidence.contains(keyBody))
+        assertTrue(finding.evidence.contains("تم حجب محتوى المفتاح"))
+    }
+
     @Test fun detectsWebViewRiskIndicatorsWithoutCallingThemCertainVulnerabilities() {
         val findings = ProjectSecurityScanner.scan(
             listOf(ProjectSourceFile("app/src/MainActivity.kt", "web.settings.setJavaScriptEnabled(true)\nweb.addJavascriptInterface(bridge, \"Bridge\")"))
