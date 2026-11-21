@@ -1,7 +1,8 @@
 package ai.noid.app
 
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.lock
+import kotlinx.coroutines.sync.unlock
 
 /**
  * Prevents model replacement or shutdown while an inference conversation is active.
@@ -12,6 +13,12 @@ import kotlinx.coroutines.sync.withLock
 internal class ModelRuntimeAccessGate {
     private val mutex = Mutex()
 
-    suspend fun <T> withAccess(block: suspend () -> T): T =
-        mutex.withLock { block() }
+    suspend fun <T> withAccess(block: suspend () -> T): T {
+        mutex.lock()
+        try {
+            return block()
+        } finally {
+            mutex.unlock()
+        }
+    }
 }
