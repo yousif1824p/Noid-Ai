@@ -348,7 +348,7 @@ private suspend fun scanSelectedProject(
     currentCoroutineContext().ensureActive()
 
     return ProjectScanResult(
-        findings = ProjectSecurityScanner.scan(sourceFiles),
+        findings = ProjectSecurityScanner.scan(sourceFiles, skippedFiles = skipped),
         scannedFiles = sourceFiles.size,
         skippedFiles = skipped,
         sourceFiles = sourceFiles.toList()

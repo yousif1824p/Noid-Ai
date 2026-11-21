@@ -143,6 +143,38 @@ class ProjectSecurityScannerTest {
         assertTrue(ProjectSecurityScanner.scan(files).isEmpty())
     }
 
+    @Test fun reportsSkippedProjectFilesAsIncompleteScan() {
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/config.properties", "ordinary configuration")),
+            skippedFiles = 3
+        )
+        val finding = findings.single { it.id == "source.scan_skipped_files" }
+
+        assertEquals(ApkFindingSeverity.LOW, finding.severity)
+        assertEquals(ApkFindingConfidence.HIGH, finding.confidence)
+        assertTrue(finding.description.contains("لا تمثل النتائج مراجعة كاملة"))
+        assertTrue(finding.evidence.contains("3"))
+        assertTrue(finding.recommendation.contains("الملفات المتجاوزة"))
+    }
+
+    @Test fun doesNotReportSkippedFilesWhenNoneWereSkipped() {
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/config.properties", "ordinary configuration")),
+            skippedFiles = 0
+        )
+        assertTrue(findings.none { it.id == "source.scan_skipped_files" })
+    }
+
+    @Test fun preservesFindingLimitAndSkippedFileWarningForNoisyProjects() {
+        val source = (1..6_000).joinToString("\\n") { "android:debuggable=true" }
+        val findings = ProjectSecurityScanner.scan(
+            listOf(ProjectSourceFile("app/src/main/AndroidManifest.xml", source)),
+            skippedFiles = 2
+        )
+        assertEquals(ProjectSecurityScanner.MAX_FINDINGS, findings.size)
+        assertTrue(findings.any { it.id == "source.scan_skipped_files" })
+    }
+
     @Test fun flagsCleartextAndDebugSettings() {
         val findings = ProjectSecurityScanner.scan(
             listOf(ProjectSourceFile("app/src/main/AndroidManifest.xml", "<application android:debuggable=\"true\" android:usesCleartextTraffic=\"true\" />"))

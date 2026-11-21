@@ -28,8 +28,19 @@ object ProjectSecurityScanner {
     private val javascriptBridge = Regex("""addJavascriptInterface\s*\(""")
     private val cleartextUrl = Regex("""http://[^\s"'<>]+""")
 
-    fun scan(files: List<ProjectSourceFile>): List<ApkSecurityFinding> {
+    fun scan(files: List<ProjectSourceFile>, skippedFiles: Int = 0): List<ApkSecurityFinding> {
         val findings = mutableListOf<ApkSecurityFinding>()
+        if (skippedFiles > 0 && findings.size < MAX_FINDINGS) {
+            findings += ApkSecurityFinding(
+                id = "source.scan_skipped_files",
+                severity = ApkFindingSeverity.LOW,
+                title = "الفحص لم يشمل بعض الملفات",
+                description = "تعذرت مراجعة بعض الملفات أو تم تجاوزها بسبب نوعها أو حدود الفحص أو تعذر قراءتها؛ لذلك لا تمثل النتائج مراجعة كاملة للمشروع.",
+                evidence = "عدد الملفات التي تم تجاوزها أو تعذرت قراءتها: $skippedFiles.",
+                recommendation = "راجع الملفات المتجاوزة، وافحص الأجزاء التي لم تشملها المراجعة بعد معالجة سبب التجاوز.",
+                confidence = ApkFindingConfidence.HIGH
+            )
+        }
         if (files.size > MAX_INPUT_FILES) {
             val skippedCount = files.size - MAX_INPUT_FILES
             findings += ApkSecurityFinding(

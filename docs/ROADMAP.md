@@ -100,6 +100,7 @@
 - [x] Add bounded in-memory remediation diff previews for supported manifest attributes, rescan proposed content, and verify that unrelated or remaining findings are not incorrectly marked resolved; previews never write project files.
 
 - [x] Report when direct source-scan input exceeds the 500-file cap, preserve the finding-count bound, and test that skipped files cannot be mistaken for inspected files.
+- [x] Surface traversal, unsupported-file, and read-failure skips as an explicit low-severity incomplete-scan finding in the SAF project scan; cover zero, positive, and finding-cap cases.
 
 ## Stage 5 — optional remote services
 - [x] Specify a versioned, opt-in HTTP/SSE contract, including transport, authentication, bounded payloads, streaming events, cancellation, and local permission boundaries; the HTTPS/SSE client implementation and unit tests are recorded below; live-server interoperability remains pending.
