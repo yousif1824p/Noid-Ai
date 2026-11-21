@@ -1,6 +1,7 @@
 package ai.noid.app
 
 import java.io.IOException
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -35,6 +36,7 @@ class SelfDevelopmentApplyRollbackTest {
         readStarted.await()
         job.cancelAndJoin()
 
+        assertTrue(job.isCancelled)
         assertTrue(rollbackStarted.isCompleted)
         assertTrue("Rollback must finish before cancellation escapes", rollbackCompleted)
     }
@@ -52,6 +54,22 @@ class SelfDevelopmentApplyRollbackTest {
         } catch (_: ApplyVerificationException) {
             assertTrue(rollbackCompleted)
         }
+    }
+
+    @Test
+    fun rollbackFailureIsSuppressedWithoutReplacingCancellation() = runBlocking {
+        var completionFailure: Throwable? = null
+        val job = launch {
+            readBackWithRollback<String>(
+                readBack = { throw CancellationException("verification cancelled") },
+                rollback = { throw IOException("rollback failed") }
+            )
+        }
+        job.invokeOnCompletion { completionFailure = it }
+        job.join()
+
+        assertTrue(completionFailure is CancellationException)
+        assertEquals("rollback failed", completionFailure?.suppressed?.singleOrNull()?.message)
     }
 
     @Test
