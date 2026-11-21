@@ -108,7 +108,7 @@
 - [x] Implement the opt-in remote HTTPS/SSE client with explicit configuration, Android Keystore-backed bearer-token storage, bounded request/response handling, cancellation, and strict event validation; covered by remote transport, settings, policy, and adapter unit tests. Live interoperability with a deployed compatible server remains pending.
 - [x] Support LF, CRLF, and CR-only SSE line endings in the bounded frame decoder, with regression tests; live-server interoperability remains pending.
 - [x] Implement the authenticated Python HTTP/SSE service boundary: exact bounded request schema, bearer authentication, ordered started/delta/completed/error events, output caps, and cancellation requests. The default backend remains explicitly unavailable; no model provider is fabricated.
-- [ ] Integrate a real inference provider and verify live Android-to-server HTTPS interoperability.
+- [x] Add a loopback-only Ollama streaming adapter with redirect/proxy disabled, bounded NDJSON parsing, strict terminal-event validation, and provider tests.\n- [ ] Install and validate a compatible model on the server host, then verify live Android-to-server HTTPS interoperability.
 - [ ] Keep untrusted execution isolated on a properly sandboxed remote environment.
 
 ## Stage 6 — personal private release (no public distribution)
