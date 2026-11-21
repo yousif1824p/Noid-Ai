@@ -24,4 +24,23 @@ interface SelfDevelopmentProposalDao {
 
     @Query("UPDATE self_development_proposals SET status = 'REJECTED', reviewedAt = :reviewedAt WHERE id = :id AND status = 'PENDING_REVIEW'")
     suspend fun rejectPending(id: Long, reviewedAt: Long): Int
+
+    /** Atomic claim prevents two screens or taps from applying one proposal twice. */
+    @Query("UPDATE self_development_proposals SET status = 'APPLYING', reviewedAt = :reviewedAt WHERE id = :id AND status = 'APPROVED'")
+    suspend fun claimApprovedForApply(id: Long, reviewedAt: Long): Int
+
+    @Query("UPDATE self_development_proposals SET status = 'APPLIED', reviewedAt = :reviewedAt WHERE id = :id AND status = 'APPLYING'")
+    suspend fun markApplied(id: Long, reviewedAt: Long): Int
+
+    @Query("UPDATE self_development_proposals SET status = 'STALE', reviewedAt = :reviewedAt WHERE id = :id AND status = 'APPLYING'")
+    suspend fun markStale(id: Long, reviewedAt: Long): Int
+
+    @Query("UPDATE self_development_proposals SET status = 'APPLY_FAILED', reviewedAt = :reviewedAt WHERE id = :id AND status = 'APPLYING'")
+    suspend fun markApplyFailed(id: Long, reviewedAt: Long): Int
+
+    @Query("UPDATE self_development_proposals SET status = 'APPLY_INTERRUPTED', reviewedAt = :reviewedAt WHERE id = :id AND status = 'APPLYING'")
+    suspend fun markApplyInterrupted(id: Long, reviewedAt: Long): Int
+
+    @Query("UPDATE self_development_proposals SET status = 'APPROVED' WHERE id = :id AND status = 'APPLYING'")
+    suspend fun releaseApplyClaim(id: Long): Int
 }
