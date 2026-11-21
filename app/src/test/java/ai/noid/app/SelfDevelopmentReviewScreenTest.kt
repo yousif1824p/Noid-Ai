@@ -7,7 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -28,7 +28,7 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class SelfDevelopmentReviewScreenTest {
-    private val mainDispatcher = StandardTestDispatcher()
+    private val mainDispatcher = UnconfinedTestDispatcher()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
@@ -63,7 +63,6 @@ class SelfDevelopmentReviewScreenTest {
             MaterialTheme { SelfDevelopmentReviewScreen(viewModel) }
         }
 
-        mainDispatcher.scheduler.advanceUntilIdle()
         composeRule.waitForIdle()
         composeRule.onNodeWithText("مراجعة تطوير NOID").fetchSemanticsNode()
         composeRule.onNodeWithText("تحسين المعالجة").fetchSemanticsNode()
@@ -75,7 +74,11 @@ class SelfDevelopmentReviewScreenTest {
         composeRule.onNodeWithText("موافقة للمراجعة اللاحقة").performClick()
         mainDispatcher.scheduler.advanceUntilIdle()
         composeRule.waitForIdle()
-        assertEquals(SelfDevelopmentProposal.STATUS_APPROVED, dao.rows.value.single().status)
+        assertEquals(
+            SelfDevelopmentProposal.STATUS_APPROVED,
+            dao.rows.value.single().status,
+            "Approval click must update the proposal through the ViewModel"
+        )
     }
 
     private class FakeProposalDao : SelfDevelopmentProposalDao {
