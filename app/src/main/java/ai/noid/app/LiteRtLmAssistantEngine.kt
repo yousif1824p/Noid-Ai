@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.withLock
 
 /**
  * On-device text inference using Google's LiteRT-LM Android Kotlin API.
