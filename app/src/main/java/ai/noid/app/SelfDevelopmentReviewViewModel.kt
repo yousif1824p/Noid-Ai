@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** User-facing review only. Approval never applies a change to the selected project. */
+/** Review and explicit apply actions. Approval alone never writes to the selected project. */
 class SelfDevelopmentReviewViewModel(
     private val repository: SelfDevelopmentProposalRepository,
     private val applyCoordinator: SelfDevelopmentApplyCoordinator? = null,
