@@ -12,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SelfDevelopmentProposalRepositoryTest {
+    private val testTreeUri = "content://com.example.documents/tree/project"
     @Test
     fun proposalIsStoredPendingAndDoesNotChangeTheSourceSnapshot() = runBlocking {
         val dao = FakeDao()
@@ -24,7 +25,8 @@ class SelfDevelopmentProposalRepositoryTest {
             "تصحيح القيمة الافتراضية",
             "src/A.kt",
             original,
-            proposed
+            proposed,
+            testTreeUri
         )
 
         val stored = dao.rows.value.single()
@@ -41,8 +43,8 @@ class SelfDevelopmentProposalRepositoryTest {
     fun onlyPendingProposalCanTransitionToApprovedOrRejected() = runBlocking {
         val dao = FakeDao()
         val repository = SelfDevelopmentProposalRepository(dao)
-        val first = repository.propose("تغيير 1", "سبب", "src/A.kt", "a", "b")
-        val second = repository.propose("تغيير 2", "سبب", "src/B.kt", "c", "d")
+        val first = repository.propose("تغيير 1", "سبب", "src/A.kt", "a", "b", testTreeUri)
+        val second = repository.propose("تغيير 2", "سبب", "src/B.kt", "c", "d", testTreeUri)
 
         assertTrue(repository.approve(first))
         assertFalse(repository.reject(first))
@@ -59,16 +61,16 @@ class SelfDevelopmentProposalRepositoryTest {
         val repository = SelfDevelopmentProposalRepository(FakeDao())
 
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { repository.propose("title", "reason", "../secret.kt", "a", "b") }
+            runBlocking { repository.propose("title", "reason", "../secret.kt", "a", "b", testTreeUri) }
         }
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { repository.propose("title", "reason", "/absolute.kt", "a", "b") }
+            runBlocking { repository.propose("title", "reason", "/absolute.kt", "a", "b", testTreeUri) }
         }
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { repository.propose("title", "reason", "assets/model.bin", "a", "b") }
+            runBlocking { repository.propose("title", "reason", "assets/model.bin", "a", "b", testTreeUri) }
         }
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { repository.propose("title", "reason", "src/A.kt", "same", "same") }
+            runBlocking { repository.propose("title", "reason", "src/A.kt", "same", "same", testTreeUri) }
         }
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking {
@@ -77,7 +79,8 @@ class SelfDevelopmentProposalRepositoryTest {
                     "reason",
                     "src/A.kt",
                     "a",
-                    "x".repeat(SelfDevelopmentProposalRepository.MAX_CONTENT_BYTES + 1)
+                    "x".repeat(SelfDevelopmentProposalRepository.MAX_CONTENT_BYTES + 1),
+                    testTreeUri
                 )
             }
         }
@@ -89,7 +92,7 @@ class SelfDevelopmentProposalRepositoryTest {
         val repository = SelfDevelopmentProposalRepository(dao)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { repository.approve(0) } }
         repeat(4) { index ->
-            repository.propose("title $index", "reason", "src/$index.kt", "a", "b$index")
+            repository.propose("title $index", "reason", "src/$index.kt", "a", "b$index", testTreeUri)
         }
         assertEquals(2, repository.recent(2).size)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { repository.recent(101) } }
