@@ -228,28 +228,28 @@ class TestSafContentProvider : ContentProvider() {
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
         val result = Bundle()
         when (method) {
-            DocumentsContract.METHOD_CREATE_DOCUMENT -> {
+            "android:createDocument" -> {
                 val parent = fileFor(arg ?: throw IOException("Missing parent document ID"))
-                val name = extras?.getString(DocumentsContract.EXTRA_DISPLAY_NAME)
+                val name = extras?.getString(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                     ?: throw IOException("Missing display name")
                 val created = File(parent, name)
                 check(created.createNewFile()) { "Document already exists" }
                 result.putParcelable(
-                    DocumentsContract.EXTRA_URI,
+                    "uri",
                     DocumentsContract.buildDocumentUri(AUTHORITY, idFor(created))
                 )
             }
-            DocumentsContract.METHOD_DELETE_DOCUMENT -> {
+            "android:deleteDocument" -> {
                 check(fileFor(arg ?: throw IOException("Missing document ID")).delete())
             }
-            DocumentsContract.METHOD_RENAME_DOCUMENT -> {
+            "android:renameDocument" -> {
                 val source = fileFor(arg ?: throw IOException("Missing document ID"))
-                val name = extras?.getString(DocumentsContract.EXTRA_DISPLAY_NAME)
+                val name = extras?.getString(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                     ?: throw IOException("Missing display name")
                 val destination = File(source.parentFile, name)
                 check(source.renameTo(destination))
                 result.putParcelable(
-                    DocumentsContract.EXTRA_URI,
+                    "uri",
                     DocumentsContract.buildDocumentUri(AUTHORITY, idFor(destination))
                 )
             }
