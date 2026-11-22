@@ -23,6 +23,7 @@ object ApkReportFormatter {
             appendLine("ID: ${finding.id}")
             appendLine("Description: ${finding.description}")
             appendLine("Evidence: ${finding.evidence}")
+            appendLine("Source: ${finding.source}")
             appendLine("Recommendation: ${finding.recommendation}")
             appendLine()
         }
