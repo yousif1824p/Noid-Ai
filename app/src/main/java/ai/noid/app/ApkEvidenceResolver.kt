@@ -88,7 +88,11 @@ object ApkEvidenceResolver {
             ) return@mapNotNull null
             ApkEvidenceRecord(
                 checkId = finding.id,
-                outcome = ApkEvidenceOutcome.FLAGGED,
+                outcome = if (finding.source == ApkFindingSource.AI_ADVISORY) {
+                    ApkEvidenceOutcome.ADVISORY
+                } else {
+                    ApkEvidenceOutcome.FLAGGED
+                },
                 source = when (finding.source) {
                     ApkFindingSource.ANDROID_MANIFEST_METADATA ->
                         ApkEvidenceSource.ANDROID_MANIFEST_METADATA
