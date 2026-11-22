@@ -48,13 +48,13 @@ fun ToolAuditScreen(repository: ToolAuditRepository) {
         Text("سجل تدقيق إجراءات NOID", fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
         Text(
-            "يعرض الأحداث التي سُجلت فعلياً في قاعدة البيانات: فحص APK الثابت وتصدير تقريره، وفحص مصدر المشروع، وعمليات تصفح وقراءة وإنشاء وتعديل واستعادة وإعادة تسمية ملفات المشروع الموصولة. لا يمثل هذا السجل نشاطاً شاملاً لكل أدوات NOID أو لكل نشاط الهاتف.",
+            "يعرض أحدث 250 حدثاً من الأحداث المسجلة فعلياً في قاعدة البيانات: فحص APK الثابت وتصدير تقريره، وفحص مصدر المشروع، وعمليات تصفح وقراءة وإنشاء وتعديل واستعادة وإعادة تسمية ملفات المشروع الموصولة. تبقى بقية الأحداث محفوظة في قاعدة البيانات، لكنها لا تُحمّل كلها إلى الواجهة. لا يمثل هذا السجل نشاطاً شاملاً لكل أدوات NOID أو لكل نشاط الهاتف.",
             color = Color(0xFF9AA0AA),
             fontSize = 12.sp
         )
         Spacer(Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AuditCount(label = "كل الأحداث", count = events.size.toString(), modifier = Modifier.weight(1f))
+            AuditCount(label = "الأحداث المعروضة", count = events.size.toString(), modifier = Modifier.weight(1f))
             AuditCount(
                 label = "مسموح",
                 count = events.count { it.decision == ToolDecision.ALLOW.name }.toString(),
@@ -71,7 +71,7 @@ fun ToolAuditScreen(repository: ToolAuditRepository) {
             value = query,
             onValueChange = { query = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("ابحث في السجل") },
+            label = { Text("ابحث في أحدث الأحداث") },
             singleLine = true
         )
         Spacer(Modifier.height(12.dp))
