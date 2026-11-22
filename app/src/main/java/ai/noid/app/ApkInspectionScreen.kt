@@ -286,8 +286,8 @@ private fun copyApkToCache(context: android.content.Context, uri: Uri): File {
     if (declaredSize > ApkManifestInspector.MAX_APK_BYTES) {
         throw IOException("حجم APK يتجاوز الحد المسموح (1.5 غيغابايت).")
     }
-    val bytesToReserveForCopy = if (declaredSize > 0L) declaredSize
-        else ApkManifestInspector.MAX_APK_BYTES
+    // Unknown provider sizes are handled incrementally instead of reserving the full 1.5 GiB.
+    val bytesToReserveForCopy = declaredSize.coerceAtLeast(0L)
     val safetyReserveBytes = 128L * 1024L * 1024L
     if (context.cacheDir.usableSpace < bytesToReserveForCopy + safetyReserveBytes) {
         throw IOException(
@@ -300,7 +300,7 @@ private fun copyApkToCache(context: android.content.Context, uri: Uri): File {
             ?: throw IOException("تعذر فتح الملف المحدد.")
         input.use { source ->
             FileOutputStream(temp).use { target ->
-                val buffer = ByteArray(8192)
+                val buffer = ByteArray(64 * 1024)
                 var total = 0L
                 while (true) {
                     val count = source.read(buffer)
@@ -308,6 +308,9 @@ private fun copyApkToCache(context: android.content.Context, uri: Uri): File {
                     total += count
                     if (total > ApkManifestInspector.MAX_APK_BYTES) {
                         throw IOException("حجم APK يتجاوز الحد المسموح (1.5 غيغابايت).")
+                    }
+                    if (context.cacheDir.usableSpace < count.toLong() + safetyReserveBytes) {
+                        throw IOException("توقّف النسخ قبل نفاد مساحة التخزين؛ وفّر مساحة إضافية ثم أعد الفحص.")
                     }
                     target.write(buffer, 0, count)
                 }
