@@ -3,7 +3,7 @@ import unittest
 import httpx
 
 from noid_engine.local_openai import LocalOpenAICompatibleEngine
-from noid_engine.server import EngineUnavailable
+from noid_engine.engine_contract import EngineUnavailable
 
 
 class EventStream(httpx.AsyncByteStream):
