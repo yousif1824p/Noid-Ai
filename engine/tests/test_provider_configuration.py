@@ -73,5 +73,32 @@ class ProviderConfigurationApiTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
+
+    async def test_local_openai_provider_requires_explicit_configuration(self):
+        with patch.dict(os.environ, {"NOID_TEXT_PROVIDER": "local_openai"}, clear=True):
+            async with self.make_client() as client:
+                response = await client.get(
+                    "/v1/health", headers={"Authorization": "Bearer test-secret"}
+                )
+        self.assertEqual(response.json()["status"], "unavailable")
+        self.assertEqual(
+            response.json()["configuration_error"], "provider_configuration_incomplete"
+        )
+
+    async def test_local_openai_provider_rejects_non_loopback_url(self):
+        with patch.dict(os.environ, {
+            "NOID_TEXT_PROVIDER": "local_openai",
+            "NOID_LOCAL_OPENAI_BASE_URL": "https://example.com",
+            "NOID_LOCAL_OPENAI_MODEL": "local-model",
+        }, clear=True):
+            async with self.make_client() as client:
+                response = await client.get(
+                    "/v1/health", headers={"Authorization": "Bearer test-secret"}
+                )
+        self.assertEqual(response.json()["status"], "unavailable")
+        self.assertEqual(
+            response.json()["configuration_error"], "provider_configuration_invalid"
+        )
+
 if __name__ == "__main__":
     unittest.main()
