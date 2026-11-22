@@ -73,7 +73,10 @@ object AssistantTaskPlanPolicy {
  * Runs plans sequentially through ToolRegistry. Sensitive/destructive steps
  * pause at the existing one-time approval gate. Any failed step stops the plan.
  */
-class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
+class AssistantTaskPlanCoordinator(
+    private val toolRegistry: ToolRegistry,
+    private val recoveryStore: TaskPlanRecoveryStore? = null
+) {
     private data class Session(
         val plan: AssistantTaskPlan,
         val mutex: Mutex = Mutex(),
@@ -89,6 +92,9 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
         if (validation != null) return AssistantTaskPlanProgress.Rejected(validation)
 
         val session = Session(plan)
+        if (recoveryStore != null && !recoveryStore.create(plan)) {
+            return AssistantTaskPlanProgress.Rejected("يوجد سجل سابق للخطة بهذا المعرّف؛ أنشئ خطة جديدة.")
+        }
         synchronized(sessions) {
             if (sessions.containsKey(plan.planId)) {
                 return AssistantTaskPlanProgress.Rejected("توجد خطة نشطة بهذا المعرّف.")
@@ -120,14 +126,24 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
                 if (session.waitingApprovalId != pendingApprovalId) {
                     return@withLock AssistantTaskPlanProgress.Rejected("طلب الموافقة لا يطابق الخطوة الحالية.")
                 }
+                val currentStep = session.plan.steps.getOrNull(session.nextStepIndex)
+                    ?: return@withLock stopLocked(session, "لم تعد خطوة الموافقة موجودة.")
+                if (recoveryStore != null && !recoveryStore.markDispatching(planId, session.nextStepIndex, currentStep.stepId)) {
+                    return@withLock stopLocked(session, "تعذر حفظ حالة التنفيذ قبل استدعاء الأداة.")
+                }
                 val result = toolRegistry.approveAndInvoke(pendingApprovalId)
                 session.waitingApprovalId = null
                 val failure = terminalFailure(result)
                 session.results += result
                 if (failure != null) stopLocked(session, failure)
                 else {
-                    session.nextStepIndex++
-                    advanceLocked(session)
+                    val nextIndex = session.nextStepIndex + 1
+                    if (recoveryStore != null && !recoveryStore.markStepSucceeded(planId, nextIndex)) {
+                        stopLocked(session, "تعذر حفظ نتيجة الخطوة؛ لن تُنفذ خطوات أخرى.")
+                    } else {
+                        session.nextStepIndex = nextIndex
+                        advanceLocked(session)
+                    }
                 }
             }
         } catch (cancelled: CancellationException) {
@@ -159,6 +175,7 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
                 }
                 session.waitingApprovalId?.let(toolRegistry::cancelApproval)
                 session.waitingApprovalId = null
+                recoveryStore?.markTerminal(session.plan.planId, TaskPlanRecoveryRecord.CANCELLED)
                 removeSession(session)
                 cancelled++
             }
@@ -173,6 +190,7 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
         return session.mutex.withLock {
             session.waitingApprovalId?.let(toolRegistry::cancelApproval)
             session.waitingApprovalId = null
+            recoveryStore?.markTerminal(planId, TaskPlanRecoveryRecord.STOPPED)
             val stepId = session.plan.steps.getOrNull(session.nextStepIndex)?.stepId ?: "unknown"
             removeSession(session)
             AssistantTaskPlanProgress.Stopped(
@@ -184,9 +202,17 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
     private suspend fun advanceLocked(session: Session): AssistantTaskPlanProgress {
         while (session.nextStepIndex < session.plan.steps.size) {
             val step = session.plan.steps[session.nextStepIndex]
+            if (recoveryStore != null && !recoveryStore.markDispatching(session.plan.planId, session.nextStepIndex, step.stepId)) {
+                return stopLocked(session, "تعذر حفظ حالة التنفيذ قبل استدعاء الأداة.")
+            }
             when (val dispatch = toolRegistry.executePlannedStep(step.proposal)) {
                 is PlannedToolStepDispatch.AwaitingApproval -> {
                     session.waitingApprovalId = dispatch.pending.id
+                    if (recoveryStore != null && !recoveryStore.markAwaitingApproval(session.plan.planId, session.nextStepIndex, step.stepId)) {
+                        toolRegistry.cancelApproval(dispatch.pending.id)
+                        session.waitingApprovalId = null
+                        return stopLocked(session, "تعذر حفظ حالة انتظار الموافقة؛ أُلغي الطلب.")
+                    }
                     return AssistantTaskPlanProgress.AwaitingApproval(
                         session.plan.planId, session.nextStepIndex, session.plan.steps.size, dispatch.pending
                     )
@@ -195,10 +221,15 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
                     val failure = terminalFailure(dispatch.result)
                     session.results += dispatch.result
                     if (failure != null) return stopLocked(session, failure)
-                    session.nextStepIndex++
+                    val nextIndex = session.nextStepIndex + 1
+                    if (recoveryStore != null && !recoveryStore.markStepSucceeded(session.plan.planId, nextIndex)) {
+                        return stopLocked(session, "تعذر حفظ نتيجة الخطوة؛ لن تُنفذ خطوات أخرى.")
+                    }
+                    session.nextStepIndex = nextIndex
                 }
             }
         }
+        recoveryStore?.markTerminal(session.plan.planId, TaskPlanRecoveryRecord.COMPLETED)
         removeSession(session)
         return AssistantTaskPlanProgress.Completed(
             session.plan.planId,
@@ -222,6 +253,7 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
 
     private fun stopLocked(session: Session, reason: String): AssistantTaskPlanProgress.Stopped {
         val stepId = session.plan.steps.getOrNull(session.nextStepIndex)?.stepId ?: "unknown"
+        recoveryStore?.markTerminal(session.plan.planId, TaskPlanRecoveryRecord.STOPPED)
         removeSession(session)
         return AssistantTaskPlanProgress.Stopped(session.plan.planId, stepId, session.results.size, reason)
     }
