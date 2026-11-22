@@ -96,7 +96,7 @@ object MemoryRetrievalPolicy {
                 if (Character.getType(character) == Character.NON_SPACING_MARK.toInt() ||
                     Character.getType(character) == Character.COMBINING_SPACING_MARK.toInt() ||
                     Character.getType(character) == Character.ENCLOSING_MARK.toInt() ||
-                    character == '\\u0640'
+                    character == 'ـ'
                 ) continue
                 append(
                     when (character) {
