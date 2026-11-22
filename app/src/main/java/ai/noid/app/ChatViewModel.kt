@@ -168,6 +168,7 @@ class ChatViewModel(
             pendingGeneration?.join()
             taskPlanCoordinator.cancelAll()
             synchronized(pendingPlanApprovals) { pendingPlanApprovals.clear() }
+            refreshTaskPlanRecovery()
         }
         mutableIsGenerating.value = false
     }
@@ -355,6 +356,7 @@ class ChatViewModel(
                 pendingGeneration?.join()
                 taskPlanCoordinator.cancelAll()
                 synchronized(pendingPlanApprovals) { pendingPlanApprovals.clear() }
+                refreshTaskPlanRecovery()
                 repository.clearConversation()
                 mutableError.value = null
             } catch (cancelled: CancellationException) {

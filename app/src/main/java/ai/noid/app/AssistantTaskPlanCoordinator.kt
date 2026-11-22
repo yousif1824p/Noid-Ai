@@ -259,7 +259,7 @@ class AssistantTaskPlanCoordinator(
         }
     }
 
-    private fun stopLocked(session: Session, reason: String): AssistantTaskPlanProgress.Stopped {
+    private suspend fun stopLocked(session: Session, reason: String): AssistantTaskPlanProgress.Stopped {
         val stepId = session.plan.steps.getOrNull(session.nextStepIndex)?.stepId ?: "unknown"
         recoveryStore?.markTerminal(session.plan.planId, TaskPlanRecoveryRecord.STOPPED)
         removeSession(session)
