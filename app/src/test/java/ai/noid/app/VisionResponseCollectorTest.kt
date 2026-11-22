@@ -1,5 +1,6 @@
 package ai.noid.app
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -173,3 +174,19 @@ class VisionResponseCollectorTest {
         override suspend fun close() = Unit
     }
 }
+
+
+    @Test
+    fun cancellationNeverReturnsPartialVisionOutput(): Unit {
+        assertThrows(CancellationException::class.java) {
+            runBlocking {
+                val engine = FakeVisionEngine {
+                    flow {
+                        emit(VisionStreamEvent.TextDelta("partial private result"))
+                        throw CancellationException("cancelled by caller")
+                    }
+                }
+                VisionResponseCollector().collectCompleteResponse(engine, request)
+            }
+        }
+    }
