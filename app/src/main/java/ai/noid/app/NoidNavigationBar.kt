@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
@@ -44,7 +43,6 @@ enum class NoidDestination(val label: String, val icon: ImageVector) {
     MODEL("محرك AI", Icons.Filled.SmartToy),
     CHAT_SEARCH("بحث", Icons.Filled.Search),
     VISION("تحليل الصور", Icons.Filled.Image),
-    VOICE("الصوت", Icons.Filled.Mic),
     REMOTE("الاتصال البعيد", Icons.Filled.Cloud)
 }
 
