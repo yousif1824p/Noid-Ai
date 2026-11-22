@@ -67,6 +67,23 @@ class TaskPlanRecoveryCoordinatorIntegrationTest {
         } finally { db.close() }
     }
 
+    @Test fun toolFailureAfterDispatchRequiresReviewInsteadOfStopped() = runBlocking {
+        val db = database()
+        try {
+            val recovery = TaskPlanRecoveryStore(db.taskPlanRecoveryDao())
+            val registry = registry(readAction) { throw IllegalStateException("simulated partial tool failure") }
+            val coordinator = AssistantTaskPlanCoordinator(registry, recovery)
+
+            val result = coordinator.start(plan("tool-failure", readAction))
+
+            assertTrue(result is AssistantTaskPlanProgress.Stopped)
+            val record = db.taskPlanRecoveryDao().find("tool-failure")!!
+            assertEquals(TaskPlanRecoveryRecord.REVIEW_REQUIRED, record.state)
+            assertTrue(record.dispatchStarted.not())
+            assertEquals(1, db.taskPlanRecoveryDao().unresolved().size)
+        } finally { db.close() }
+    }
+
     @Test fun unexpectedPersistenceFailureIsImmediatelyMarkedForReview() = runBlocking {
         val db = database()
         try {

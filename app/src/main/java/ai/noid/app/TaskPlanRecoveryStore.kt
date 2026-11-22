@@ -83,6 +83,14 @@ interface TaskPlanRecoveryDao {
     """)
     suspend fun markTerminal(planId: String, state: String, now: Long): Int
 
+    @Query("""
+        UPDATE task_plan_recovery
+        SET state = CASE WHEN dispatchStarted = 1 THEN 'REVIEW_REQUIRED' ELSE 'STOPPED' END,
+            dispatchStarted = 0, updatedAt = :now
+        WHERE planId = :planId AND state IN ('RUNNING', 'WAITING_APPROVAL')
+    """)
+    suspend fun markStoppedOrReview(planId: String, now: Long): Int
+
     @Query("SELECT * FROM task_plan_recovery WHERE planId = :planId LIMIT 1")
     suspend fun find(planId: String): TaskPlanRecoveryRecord?
 
@@ -125,6 +133,10 @@ class TaskPlanRecoveryStore(private val dao: TaskPlanRecoveryDao) {
         require(state in setOf(TaskPlanRecoveryRecord.COMPLETED, TaskPlanRecoveryRecord.STOPPED, TaskPlanRecoveryRecord.CANCELLED))
         return dao.markTerminal(planId, state, System.currentTimeMillis()) == 1
     }
+
+    /** Preserve uncertainty after dispatch; a failed action may have partially changed external state. */
+    suspend fun markStoppedOrReview(planId: String): Boolean =
+        dao.markStoppedOrReview(planId, System.currentTimeMillis()) == 1
 
     suspend fun unresolved(): List<TaskPlanRecoveryRecord> {
         ensureRecovered()
