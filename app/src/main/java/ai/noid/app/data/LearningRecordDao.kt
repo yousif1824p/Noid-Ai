@@ -2,6 +2,7 @@ package ai.noid.app
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
@@ -18,6 +19,10 @@ interface LearningRecordDao {
 
     @Insert
     suspend fun insert(record: LearningRecord): Long
+
+    /** Returns -1 when the unique key already exists. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(record: LearningRecord): Long
 
     @Query("UPDATE learning_records SET status = 'APPROVED', reviewedAt = :reviewedAt WHERE id = :id AND status = 'PENDING'")
     suspend fun approvePending(id: Long, reviewedAt: Long): Int
