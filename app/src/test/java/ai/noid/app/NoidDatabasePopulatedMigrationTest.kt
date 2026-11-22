@@ -12,6 +12,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Recreates the v7 Room schema using the same entities, seeds existing rows,
@@ -37,6 +38,7 @@ abstract class NoidDatabaseV7Fixture : RoomDatabase() {
 }
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class NoidDatabasePopulatedMigrationTest {
     @Test
     fun migration7To8PreservesExistingRowsAndCreatesRecoveryTable() = runBlocking {
