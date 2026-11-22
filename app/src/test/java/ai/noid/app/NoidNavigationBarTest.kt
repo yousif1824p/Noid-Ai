@@ -75,6 +75,6 @@ class NoidNavigationBarTest {
             }
         }
 
-        composeRule.onNodeWithText("مسح المحادثة").assertIsDisplayed()
+        composeRule.onNodeWithText("مسح المحادثة").performScrollTo().assertIsDisplayed()
     }
 }
