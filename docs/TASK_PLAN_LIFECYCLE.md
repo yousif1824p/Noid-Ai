@@ -1,6 +1,6 @@
 # NOID AI — Task Plan Lifecycle and Recovery
 
-**Status:** Metadata-only recovery is implemented; automated tests pass. Populated-v7 migration verification and target-device process-death testing remain pending.  
+**Status:** Metadata-only recovery is implemented; automated migration tests pass, including preservation of populated v7 data under Robolectric. Target-device process-death testing remains pending.  
 **Scope:** Android task-plan orchestration and its Room-backed recovery metadata.  
 **Safety objective:** A process restart or ambiguous tool outcome must never replay an old plan automatically.
 
@@ -57,7 +57,7 @@ A database write and an arbitrary external side effect cannot be made one atomic
 
 Room migration 7→8 creates `task_plan_recovery` and leaves existing tables untouched. The migration contract test verifies the migration version pair, table-creation SQL, expected metadata columns, and absence of payload/credential columns.
 
-**Not yet verified:** a migration of a real, populated version-7 database with existing chat, memory, learning, proposal, and audit rows. The current contract test is not a substitute for that integration test. Room schema export is currently disabled, so a populated-database test requires a controlled version-7 fixture or enabling and maintaining exported schemas.
+A populated-v7 integration test now creates a version-7 Room fixture, inserts existing rows into chat, memory, learning, proposal, and audit tables, then opens the same database with the production v8 database and the actual 7→8 migration. It verifies all five rows remain readable and the new recovery table is created empty. The test runs under Robolectric SDK 35; this is an automated JVM test, not a physical-device migration test. Room schema export remains disabled.
 
 ## 5. User-facing recovery
 
@@ -70,16 +70,17 @@ Current UI is a warning/review entry point, not a complete recovery-history work
 - Store tests cover recovery of active and approval-waiting records, duplicate plan IDs, terminal-state stability, and dispatch-state constraints.
 - Coordinator integration tests cover successful completion persistence and rejection of a stale approval after coordinator recreation.
 - Migration contract test covers the 7→8 table-creation contract and metadata-only schema.
-- CI run **45038344197** completed successfully, including Android unit tests. The workflow does not package an APK.
+- Populated migration integration test verifies preservation of existing rows in all five pre-existing tables and creation of the empty recovery table.
+- Room KSP is configured for test sources so the v7 fixture receives its generated implementation.
+- CI run **45040148794** completed successfully, including Android unit tests and the populated migration test. The workflow does not package an APK.
 
 These tests do not prove Android process-death behavior on the target phone, nor do they verify migration of a populated v7 database.
 
 ## 7. Remaining acceptance work
 
-1. Add and pass a true populated-v7-to-v8 migration integration test that verifies pre-existing rows remain intact.
-2. Manually test on the target Android device: start a plan, interrupt/force-stop the app at safe points before and after dispatch, reopen it, and verify it is marked `INTERRUPTED` or `REVIEW_REQUIRED` as appropriate, with no automatic replay.
-3. Verify the warning banner and audit-review instructions on the device.
-4. Keep CI test-only; do not package an APK before the project is complete and the user approves it.
+1. Manually test on the target Android device: start a plan, interrupt/force-stop the app at safe points before and after dispatch, reopen it, and verify it is marked `INTERRUPTED` or `REVIEW_REQUIRED` as appropriate, with no automatic replay.
+2. Verify the warning banner and audit-review instructions on the device.
+3. Keep CI test-only; do not package an APK before the project is complete and the user approves it.
 
 ## 8. Explicit non-goals
 
