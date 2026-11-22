@@ -6,6 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ApkManifestAnalyzerTest {
+    @Test fun apkInspectorAcceptsFilesUpToOneAndHalfGiB() {
+        assertEquals(1536L * 1024L * 1024L, ApkManifestInspector.MAX_APK_BYTES)
+    }
+
     @Test fun reportsDebuggableAndBackupAsReviewFindings() {
         val report = ApkManifestAnalyzer.analyze(
             ApkManifestSnapshot("example.app", "1.0", true, true, emptyList(), emptyList())
