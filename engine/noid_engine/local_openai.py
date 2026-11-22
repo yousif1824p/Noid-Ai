@@ -7,7 +7,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
-from .server import EngineUnavailable, MAX_OUTPUT_CHARS
+from .engine_contract import EngineUnavailable, MAX_OUTPUT_CHARS
 
 
 class LocalOpenAICompatibleEngine:
