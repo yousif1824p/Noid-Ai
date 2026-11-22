@@ -3,6 +3,7 @@ package ai.noid.app
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -72,8 +73,21 @@ class MemoryRetrievalEvaluationTest {
     fun normalizedArabicStopWordsDoNotBecomeSearchTerms() {
         assertTrue(
             "Arabic stop words must be removed after normalization",
-            MemoryRetrievalPolicy.tokens("إلى في من") .isEmpty()
+            MemoryRetrievalPolicy.tokens("إلى في من").isEmpty()
         )
+    }
+
+    @Test
+    fun repeatedTermsContributeToBm25TermFrequency() {
+        val memories = listOf(
+            memory(1, "مفتاح", "قيمة"),
+            memory(2, "مفتاح مفتاح مفتاح مفتاح", "قيمة"),
+            memory(3, "عنوان مختلف", "محتوى آخر")
+        )
+
+        val ranked = MemoryRetrievalPolicy.rank("مفتاح", memories)
+
+        assertEquals(2L, ranked.first().first.id)
     }
 
     @Test
