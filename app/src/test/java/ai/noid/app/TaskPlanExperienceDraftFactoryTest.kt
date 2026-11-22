@@ -12,6 +12,7 @@ class TaskPlanExperienceDraftFactoryTest {
 
         assertNotNull(draft)
         assertTrue(draft!!.content.contains("project.read ← project.inspect"))
+        assertTrue(draft.deduplicationKey == "task-plan:plan-123")
         assertFalse(draft.content.contains("PRIVATE_FILE_CONTENT"))
         assertFalse(draft.content.contains("secret/path"))
         assertTrue(draft.content.contains("لا تتضمن معاملات التنفيذ"))
