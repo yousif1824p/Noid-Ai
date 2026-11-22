@@ -68,6 +68,28 @@ class MemoryRetrievalEvaluationTest {
         assertTrue("MRR was $meanReciprocalRank", meanReciprocalRank >= 0.70)
     }
 
+    @Test
+    fun normalizedArabicStopWordsDoNotBecomeSearchTerms() {
+        assertTrue(
+            "Arabic stop words must be removed after normalization",
+            MemoryRetrievalPolicy.tokens("إلى في من") .isEmpty()
+        )
+    }
+
+    @Test
+    fun titleMatchesOutrankIncidentalSourceMatches() = runBlocking {
+        val memories = listOf(
+            memory(1, "استعادة الخطط بعد الإغلاق", "مراجعة حالة التنفيذ بعد إعادة تشغيل التطبيق"),
+            memory(2, "ملاحظات عامة", "تفاصيل متنوعة",).copy(source = "استعادة الخطط بعد الإغلاق"),
+            memory(3, "إعدادات الواجهة", "ألوان وأحجام النصوص")
+        )
+        val repository = MemoryRepository(EvaluationMemoryDao(memories))
+
+        val result = repository.relevantContext("استعادة الخطط بعد الإغلاق", maxItems = 3)
+
+        assertEquals(1L, result.first().id)
+    }
+
     private fun memory(id: Long, title: String, content: String) = UserMemory(
         id = id,
         title = title,
