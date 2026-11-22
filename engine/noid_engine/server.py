@@ -9,6 +9,13 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from .providers import (
+    ProviderConfigurationError,
+    ProviderRegistry,
+    UnknownProviderError,
+    default_provider_registry,
+)
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -41,6 +48,9 @@ class ActiveRequest:
 
 
 class UnconfiguredEngine:
+    def __init__(self, reason: str = "no_provider_selected") -> None:
+        self.reason = reason
+
     async def stream(self, messages: Sequence[dict[str, str]]) -> AsyncIterator[str]:
         raise EngineUnavailable
         yield ""  # pragma: no cover - keeps this an async generator
@@ -87,18 +97,34 @@ def _validate_payload(payload: object) -> tuple[str, list[dict[str, str]]] | Non
     return request_id, normalized
 
 
-def create_app(engine: TextEngine | None = None, token: str | None = None) -> FastAPI:
+def create_app(
+    engine: TextEngine | None = None,
+    token: str | None = None,
+    provider_registry: ProviderRegistry | None = None,
+) -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    selected_provider = "injected" if engine is not None else os.environ.get(
+        "NOID_TEXT_PROVIDER", ""
+    ).strip().lower()
+    configuration_error: str | None = None
     if engine is not None:
         backend = engine
+    elif not selected_provider:
+        backend = UnconfiguredEngine("no_provider_selected")
+        selected_provider = "none"
     else:
-        ollama_url = os.environ.get("NOID_OLLAMA_BASE_URL", "")
-        ollama_model = os.environ.get("NOID_OLLAMA_MODEL", "")
-        if ollama_url and ollama_model:
-            from .ollama import OllamaTextEngine
-            backend = OllamaTextEngine(ollama_url, ollama_model)
-        else:
-            backend = UnconfiguredEngine()
+        registry = provider_registry or default_provider_registry()
+        try:
+            backend = registry.create(selected_provider, os.environ)
+        except UnknownProviderError:
+            backend = UnconfiguredEngine("unknown_provider")
+            configuration_error = "unknown_provider"
+        except ProviderConfigurationError:
+            backend = UnconfiguredEngine("provider_configuration_incomplete")
+            configuration_error = "provider_configuration_incomplete"
+        except ValueError:
+            backend = UnconfiguredEngine("provider_configuration_invalid")
+            configuration_error = "provider_configuration_invalid"
     backend_configured = not isinstance(backend, UnconfiguredEngine)
     expected_token = token if token is not None else os.environ.get("NOID_API_TOKEN", "")
     active: dict[str, ActiveRequest] = {}
@@ -119,6 +145,8 @@ def create_app(engine: TextEngine | None = None, token: str | None = None) -> Fa
             "protocol": "noid-http-sse",
             "version": PROTOCOL_VERSION,
             "status": "ready" if backend_configured else "unavailable",
+            "provider": selected_provider,
+            "configuration_error": configuration_error,
         }, headers={"Cache-Control": "no-store"})
 
     @app.post("/v1/chat")
