@@ -42,7 +42,8 @@ data class ApkInspectionReport(
     val components: List<ApkExportedComponent>,
     val findings: List<ApkSecurityFinding>,
     val minSdkVersion: Int? = null,
-    val targetSdkVersion: Int? = null
+    val targetSdkVersion: Int? = null,
+    val assessment: ApkSecurityAssessment = ApkEvidenceResolver.assess(emptyList())
 )
 
 /** Deterministic first-pass rules. Findings are review leads, not proof of exploitability. */
@@ -102,11 +103,13 @@ object ApkManifestAnalyzer {
             "تابع مراجعة المصدر والتخزين والشبكة والمكونات واختبارات التشغيل المصرح بها."
         )
 
+        val immutableFindings = findings.toList()
         return ApkInspectionReport(
             snapshot.packageName, snapshot.versionName,
             snapshot.requestedPermissions.distinct().sorted(),
-            snapshot.components, findings,
-            snapshot.minSdkVersion, snapshot.targetSdkVersion
+            snapshot.components, immutableFindings,
+            snapshot.minSdkVersion, snapshot.targetSdkVersion,
+            ApkEvidenceResolver.fromManifestFindings(immutableFindings)
         )
     }
 }
