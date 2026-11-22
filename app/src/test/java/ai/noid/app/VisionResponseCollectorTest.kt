@@ -162,19 +162,6 @@ class VisionResponseCollectorTest {
         }
     }
 
-    private class FakeVisionEngine(
-        status: VisionEngineStatus = VisionEngineStatus.Ready("test-vision"),
-        private val producer: () -> Flow<VisionStreamEvent>
-    ) : VisionEngine {
-        override val status = MutableStateFlow(status)
-
-        override fun analyze(request: VisionAnalysisRequest): Flow<VisionStreamEvent> =
-            producer()
-
-        override suspend fun close() = Unit
-    }
-}
-
 
     @Test
     fun cancellationNeverReturnsPartialVisionOutput(): Unit {
@@ -190,3 +177,17 @@ class VisionResponseCollectorTest {
             }
         }
     }
+
+    private class FakeVisionEngine(
+        status: VisionEngineStatus = VisionEngineStatus.Ready("test-vision"),
+        private val producer: () -> Flow<VisionStreamEvent>
+    ) : VisionEngine {
+        override val status = MutableStateFlow(status)
+
+        override fun analyze(request: VisionAnalysisRequest): Flow<VisionStreamEvent> =
+            producer()
+
+        override suspend fun close() = Unit
+    }
+}
+
