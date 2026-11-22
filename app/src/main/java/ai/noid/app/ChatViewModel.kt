@@ -183,8 +183,17 @@ class ChatViewModel(
                     " لم تُنشأ خبرة للمراجعة لأن نتائج التنفيذ لم تستوفِ شروط الحفظ الآمن."
                 } else {
                     try {
-                        learningRepository.propose(draft.title, draft.content, draft.source)
-                        " أُضيفت خبرة مختصرة إلى قائمة التعلّم للمراجعة؛ لن تدخل ذاكرة NOID قبل موافقتك."
+                        val proposalId = learningRepository.proposeOnce(
+                            draft.title,
+                            draft.content,
+                            draft.source,
+                            draft.deduplicationKey
+                        )
+                        if (proposalId == null) {
+                            " سبق إنشاء اقتراح لهذه الخطة؛ لم يُضف اقتراح مكرر."
+                        } else {
+                            " أُضيفت خبرة مختصرة إلى قائمة التعلّم للمراجعة؛ لن تدخل ذاكرة NOID قبل موافقتك."
+                        }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
