@@ -67,6 +67,31 @@ class TaskPlanRecoveryCoordinatorIntegrationTest {
         } finally { db.close() }
     }
 
+    @Test fun unexpectedPersistenceFailureIsImmediatelyMarkedForReview() = runBlocking {
+        val db = database()
+        try {
+            val delegate = db.taskPlanRecoveryDao()
+            val failingDao = object : TaskPlanRecoveryDao by delegate {
+                override suspend fun markStepSucceeded(
+                    planId: String,
+                    nextIndex: Int,
+                    now: Long
+                ): Int = throw IllegalStateException("simulated database write failure")
+            }
+            val recovery = TaskPlanRecoveryStore(failingDao)
+            val registry = registry(readAction) { "read-completed" }
+            val coordinator = AssistantTaskPlanCoordinator(registry, recovery)
+
+            val result = coordinator.start(plan("persist-failure", readAction))
+
+            assertTrue(result is AssistantTaskPlanProgress.Stopped)
+            val record = delegate.find("persist-failure")!!
+            assertEquals(TaskPlanRecoveryRecord.REVIEW_REQUIRED, record.state)
+            assertTrue(record.dispatchStarted.not())
+            assertEquals(1, delegate.unresolved().size)
+        } finally { db.close() }
+    }
+
     private fun plan(id: String, action: ToolAction) = AssistantTaskPlan(
         id, "اختبار استعادة المنسق",
         listOf(AssistantTaskPlanStep(
