@@ -25,6 +25,21 @@ class LearningRepositoryTest {
     }
 
     @Test
+    fun taskPlanProposalIsCreatedOnlyOnceForItsStableKey() = runBlocking {
+        val dao = FakeLearningRecordDao()
+        val repository = LearningRepository(dao)
+
+        val first = repository.proposeOnce("خطة", "تسلسل آمن", "خطة مكتملة", "task-plan:plan-42")
+        val repeated = repository.proposeOnce("خطة", "تسلسل آمن", "خطة مكتملة", "task-plan:plan-42")
+
+        assertTrue(first != null && first > 0)
+        assertEquals(null, repeated)
+        assertEquals(1, dao.records.value.size)
+        assertEquals("task-plan:plan-42", dao.records.value.single().deduplicationKey)
+        assertEquals(LearningRecord.STATUS_PENDING, dao.records.value.single().status)
+    }
+
+    @Test
     fun rejectedProposalNeverEntersApprovedContext() = runBlocking {
         val dao = FakeLearningRecordDao()
         val repository = LearningRepository(dao)
@@ -71,6 +86,12 @@ class LearningRepositoryTest {
             val id = nextId++
             records.value = records.value + record.copy(id = id)
             return id
+        }
+
+        override suspend fun insertIfAbsent(record: LearningRecord): Long {
+            val key = record.deduplicationKey
+            if (key != null && records.value.any { it.deduplicationKey == key }) return -1L
+            return insert(record)
         }
 
         override suspend fun approvePending(id: Long, reviewedAt: Long): Int =
