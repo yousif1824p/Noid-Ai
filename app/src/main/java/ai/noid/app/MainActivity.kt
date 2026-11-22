@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
         val learningRepository = LearningRepository(database.learningRecordDao())
         val selfDevelopmentRepository = SelfDevelopmentProposalRepository(database.selfDevelopmentProposalDao())
         val toolAuditRepository = ToolAuditRepository(database.toolAuditDao())
+        val taskPlanRecoveryStore = TaskPlanRecoveryStore(database.taskPlanRecoveryDao())
         val selectedProjectTree = SelectedProjectTreeSession()
         val toolExecutionCoordinator = ToolExecutionCoordinator()
         val toolRegistry = ToolRegistry(toolExecutionCoordinator, toolAuditRepository)
@@ -146,7 +147,8 @@ class MainActivity : ComponentActivity() {
                 learningRepository,
                 engine,
                 toolRegistry,
-                remoteChatAdapter
+                remoteChatAdapter,
+                taskPlanRecoveryStore
             )
         )[ChatViewModel::class.java]
         val memoryViewModel = ViewModelProvider(

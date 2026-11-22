@@ -53,7 +53,8 @@ class ChatViewModel(
     private val learningRepository: LearningRepository,
     private val engine: AssistantEngine,
     private val toolRegistry: ToolRegistry,
-    private val remoteChatAdapter: RemoteChatTurnAdapter = RemoteChatTurnAdapter()
+    private val remoteChatAdapter: RemoteChatTurnAdapter = RemoteChatTurnAdapter(),
+    private val taskPlanRecoveryStore: TaskPlanRecoveryStore? = null
 ) : ViewModel() {
     val messages: Flow<List<ChatMessage>> = repository.messages
     val engineStatus: StateFlow<AssistantEngineStatus> = engine.status
@@ -160,7 +161,7 @@ class ChatViewModel(
 
 
     private val taskPlanner = AssistantTaskPlanner(engine, toolRegistry)
-    private val taskPlanCoordinator = AssistantTaskPlanCoordinator(toolRegistry)
+    private val taskPlanCoordinator = AssistantTaskPlanCoordinator(toolRegistry, taskPlanRecoveryStore)
     private val pendingPlanApprovals = mutableMapOf<String, String>()
 
     private suspend fun handleTaskPlanProgress(progress: AssistantTaskPlanProgress) {
@@ -358,13 +359,14 @@ class ChatViewModelFactory(
     private val learningRepository: LearningRepository,
     private val engine: AssistantEngine,
     private val toolRegistry: ToolRegistry,
-    private val remoteChatAdapter: RemoteChatTurnAdapter = RemoteChatTurnAdapter()
+    private val remoteChatAdapter: RemoteChatTurnAdapter = RemoteChatTurnAdapter(),
+    private val taskPlanRecoveryStore: TaskPlanRecoveryStore? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(ChatViewModel::class.java)) {
             "Unknown ViewModel class: ${modelClass.name}"
         }
-        return ChatViewModel(repository, memoryRepository, learningRepository, engine, toolRegistry, remoteChatAdapter) as T
+        return ChatViewModel(repository, memoryRepository, learningRepository, engine, toolRegistry, remoteChatAdapter, taskPlanRecoveryStore) as T
     }
 }
