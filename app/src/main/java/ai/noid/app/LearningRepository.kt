@@ -12,6 +12,30 @@ class LearningRepository(
     val pending: Flow<List<LearningRecord>> = dao.observePending()
 
     suspend fun propose(title: String, content: String, source: String): Long {
+        val record = validatedRecord(title, content, source)
+        return dao.insert(record)
+    }
+
+    /**
+     * Atomically creates at most one proposal for a stable workflow key.
+     * Returns null when that workflow has already produced a proposal,
+     * whether the existing proposal is pending, approved, or rejected.
+     */
+    suspend fun proposeOnce(
+        title: String,
+        content: String,
+        source: String,
+        deduplicationKey: String
+    ): Long? {
+        val key = deduplicationKey.trim()
+        require(key.isNotEmpty()) { "مفتاح منع التكرار مطلوب." }
+        require(key.length <= MAX_DEDUPLICATION_KEY_CHARS) { "مفتاح منع التكرار طويل جداً." }
+        return dao.insertIfAbsent(
+            validatedRecord(title, content, source).copy(deduplicationKey = key)
+        ).takeIf { it > 0 }
+    }
+
+    private fun validatedRecord(title: String, content: String, source: String): LearningRecord {
         val safeTitle = title.trim()
         val safeContent = content.trim()
         val safeSource = source.trim()
@@ -21,13 +45,11 @@ class LearningRepository(
         require(safeTitle.length <= MAX_TITLE_CHARS) { "عنوان المعرفة طويل جداً." }
         require(safeContent.length <= MAX_CONTENT_CHARS) { "محتوى المعرفة طويل جداً." }
         require(safeSource.length <= MAX_SOURCE_CHARS) { "مصدر المعرفة طويل جداً." }
-        return dao.insert(
-            LearningRecord(
-                title = safeTitle,
-                content = safeContent,
-                source = safeSource,
-                status = LearningRecord.STATUS_PENDING
-            )
+        return LearningRecord(
+            title = safeTitle,
+            content = safeContent,
+            source = safeSource,
+            status = LearningRecord.STATUS_PENDING
         )
     }
 
@@ -71,6 +93,7 @@ class LearningRepository(
         const val MAX_TITLE_CHARS = 160
         const val MAX_CONTENT_CHARS = 8_000
         const val MAX_SOURCE_CHARS = 500
+        const val MAX_DEDUPLICATION_KEY_CHARS = 120
         const val MAX_CONTEXT_ITEMS = 12
         const val MAX_CONTEXT_CHARACTERS = 6_000
         const val MAX_SEARCH_QUERY_CHARS = 120
