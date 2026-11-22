@@ -10,7 +10,8 @@ This directory contains the optional authenticated HTTP/SSE service consumed by 
 - Bearer authentication is mandatory. Set `NOID_API_TOKEN` outside the repository.
 - The engine has a provider registry (`noid_engine.providers.ProviderRegistry`). Adapters can be registered independently of the API server.
 - Provider selection is explicit through `NOID_TEXT_PROVIDER`; there is no automatic model selection or remote fallback.
-- The only built-in provider adapter at this stage is loopback-only Ollama. It requires both `NOID_OLLAMA_BASE_URL` and `NOID_OLLAMA_MODEL`.
+- Two built-in providers are available: loopback-only Ollama and a loopback-only OpenAI-compatible local inference adapter (for example, a local llama.cpp server). Both require explicit selection and model configuration.
+- Ollama uses `NOID_OLLAMA_BASE_URL` and `NOID_OLLAMA_MODEL`; the OpenAI-compatible adapter uses `NOID_LOCAL_OPENAI_BASE_URL` and `NOID_LOCAL_OPENAI_MODEL`.
 - With no selected provider, an unknown provider, or incomplete provider settings, the service reports `unavailable`. It never fabricates assistant output.
 - Model output is plain text only; no tools, shell, files, Android permissions, or code-execution endpoint exist.
 - Provider adapters receive only chat messages. APK files, manifests, and inspection reports are not uploaded by this service.
@@ -36,9 +37,9 @@ The example binds to loopback. For deployment, terminate TLS at a correctly conf
 
 ## Explicit limitations
 
-- Only Ollama is currently registered as a built-in text provider. The registry is extensible, but additional local/cloud adapters are not yet implemented or verified.
+- Two local adapters are registered: Ollama and an OpenAI-compatible local server adapter. Neither is enabled by default; additional cloud adapters are not implemented.
 - No provider is enabled by default. A model must already be installed and explicitly selected on the server host.
-- Provider quality, deployment TLS, multi-worker cancellation, and live Android-to-server interoperability are not yet verified.
+- Provider quality, compatibility with specific local server implementations, deployment TLS, multi-worker cancellation, and live Android-to-server interoperability are not yet verified. Adapter tests are committed but have not been run because Actions quota is being preserved.
 - The Android APK analyzer currently emits deterministic Manifest findings with explicit source labels. The Python evidence aggregator is a tested foundation for future cross-source assessment; it is not yet wired into the Android APK report flow.
 - AI advice remains a separate advisory channel. It cannot establish a clean result, override deterministic evidence, or declare an APK safe.
 - GitHub Actions automatic push and pull-request triggers are paused to preserve the repository quota. The tests-only workflow remains available through manual `workflow_dispatch`; no APK packaging job is present.
