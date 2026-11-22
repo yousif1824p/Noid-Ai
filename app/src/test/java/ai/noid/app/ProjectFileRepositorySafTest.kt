@@ -40,6 +40,44 @@ class ProjectFileRepositorySafTest {
     }
 
     @Test
+    fun documentsProviderChildQueryExposesOpaqueDocumentIds() {
+        File(root, "notes.txt").writeText("original", Charsets.UTF_8)
+        TestDocumentsProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, "root")
+        val cursor = context.contentResolver.query(
+            childrenUri,
+            arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_MIME_TYPE
+            ),
+            null,
+            null,
+            null
+        ) ?: throw AssertionError("DocumentsProvider returned a null child cursor")
+        cursor.use {
+            assertTrue("Expected notes.txt in the provider child listing", it.moveToFirst())
+            assertEquals("notes.txt", it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)))
+            val documentId = it.getString(it.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID))
+            assertTrue("Document IDs must remain opaque", documentId.startsWith("doc-"))
+            val documentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+            val documentCursor = context.contentResolver.query(
+                documentUri,
+                arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),
+                null,
+                null,
+                null
+            ) ?: throw AssertionError("DocumentsProvider returned a null document cursor")
+            documentCursor.use { document ->
+                assertTrue("Expected queryDocument to resolve the child ID", document.moveToFirst())
+                assertEquals(documentId, document.getString(0))
+            }
+        }
+    }
+
+    @Test
     fun readsWritesBacksUpAndRestoresThroughDocumentsProvider() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
         TestDocumentsProvider.backingRoot = root
