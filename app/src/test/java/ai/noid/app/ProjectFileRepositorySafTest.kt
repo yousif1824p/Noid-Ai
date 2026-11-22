@@ -8,6 +8,7 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsProvider
 import java.io.File
 import java.io.IOException
+import java.util.Base64
 import java.nio.file.Files
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -184,16 +185,22 @@ class TestDocumentsProvider : DocumentsProvider() {
     }
 
     private fun fileFor(documentId: String): File {
-        val base = backingRoot
+        val base = backingRoot.canonicalFile
         if (documentId == "root") return base
-        val relative = documentId.removePrefix("root/")
-        require(!relative.startsWith("/") && relative.split('/').none { it == ".." })
-        return File(base, relative)
+        require(documentId.startsWith("doc-")) { "Unknown document ID" }
+        val encodedPath = documentId.removePrefix("doc-")
+        val relative = String(Base64.getUrlDecoder().decode(encodedPath), Charsets.UTF_8)
+        require(relative.isNotBlank() && !relative.startsWith("/") &&
+            relative.split('/').none { it.isBlank() || it == "." || it == ".." })
+        val target = File(base, relative).canonicalFile
+        require(target.toPath().startsWith(base.toPath())) { "Document escaped provider root" }
+        return target
     }
 
     private fun idFor(file: File): String =
         if (file.canonicalFile == backingRoot.canonicalFile) "root"
-        else "root/" + file.relativeTo(backingRoot).invariantSeparatorsPath
+        else "doc-" + Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(file.relativeTo(backingRoot).invariantSeparatorsPath.toByteArray(Charsets.UTF_8))
 
     companion object {
         const val AUTHORITY = "ai.noid.test.documents"
