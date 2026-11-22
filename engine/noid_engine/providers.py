@@ -55,5 +55,16 @@ def default_provider_registry() -> ProviderRegistry:
         from .ollama import OllamaTextEngine
         return OllamaTextEngine(base_url, model)
 
+    def create_local_openai(settings: Mapping[str, str]) -> TextEngine:
+        base_url = settings.get("NOID_LOCAL_OPENAI_BASE_URL", "").strip()
+        model = settings.get("NOID_LOCAL_OPENAI_MODEL", "").strip()
+        if not base_url or not model:
+            raise ProviderConfigurationError(
+                "Local OpenAI-compatible URL and model must both be configured."
+            )
+        from .local_openai import LocalOpenAICompatibleEngine
+        return LocalOpenAICompatibleEngine(base_url, model)
+
     registry.register("ollama", create_ollama)
+    registry.register("local_openai", create_local_openai)
     return registry
