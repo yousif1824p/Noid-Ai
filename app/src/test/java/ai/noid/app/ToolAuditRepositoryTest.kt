@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -32,7 +33,38 @@ class ToolAuditRepositoryTest {
     }
 
     @Test
-    fun recordBoundsStoredDetailsToOneThousandCharacters() = runBlocking {
+    fun auditDetailsRedactBearerTokensAndNamedSecretsBeforePersistence() = runBlocking {
+        val dao = FakeToolAuditDao()
+        val repository = ToolAuditRepository(dao)
+        val action = ToolAction("remote-request", ToolCapability.NETWORK, ToolRisk.READ_ONLY, "طلب بعيد")
+        val details = "Authorization: Bearer bearer-value api_key=key-value password='pass-value'"
+
+        assertTrue(repository.record(action, ToolAuthorization(ToolDecision.ALLOW, "مسموح"), details))
+
+        val saved = dao.events.value.single().details.orEmpty()
+        assertFalse(saved.contains("bearer-value"))
+        assertFalse(saved.contains("key-value"))
+        assertFalse(saved.contains("pass-value"))
+        assertTrue(saved.contains("[REDACTED]"))
+    }
+
+    @Test
+    fun auditDetailsRedactQueryCredentialsJwtAndUrlUserInfo() = runBlocking {
+        val dao = FakeToolAuditDao()
+        val repository = ToolAuditRepository(dao)
+        val action = ToolAction("remote-request", ToolCapability.NETWORK, ToolRisk.READ_ONLY, "طلب بعيد")
+        val token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signaturevalue"
+        val details = "https://user:password@example.test/path?access_token=query-secret jwt=$token"
+
+        assertTrue(repository.record(action, ToolAuthorization(ToolDecision.ALLOW, "مسموح"), details))
+
+        val saved = dao.events.value.single().details.orEmpty()
+        listOf("user:password", "query-secret", token).forEach { assertFalse(saved.contains(it)) }
+        assertTrue(saved.contains("[REDACTED_JWT]"))
+    }
+
+    @Test
+    fun recordBoundsSanitizedStoredDetailsToOneThousandCharacters() = runBlocking {
         val dao = FakeToolAuditDao()
         val repository = ToolAuditRepository(dao)
         val action = ToolAction("scan-1", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "فحص ملف")
@@ -40,6 +72,12 @@ class ToolAuditRepositoryTest {
 
         assertTrue(repository.record(action, ToolAuthorization(ToolDecision.ALLOW, "مسموح"), longDetails))
         assertEquals(1000, dao.events.value.single().details?.length)
+    }
+
+    @Test
+    fun sanitizerAcceptsNullAndZeroLengthBounds() {
+        assertNull(ToolAuditDetailsSanitizer.sanitize(null, 10))
+        assertEquals("", ToolAuditDetailsSanitizer.sanitize("secret=value", 0))
     }
 
     @Test

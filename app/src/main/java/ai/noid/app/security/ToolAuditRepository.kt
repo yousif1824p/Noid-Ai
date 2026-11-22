@@ -9,6 +9,7 @@ class ToolAuditRepository(private val dao: ToolAuditDao) {
     /**
      * Returns false when persistence fails so callers can distinguish an
      * unaudited operation without masking the result of the operation itself.
+     * Sensitive values are redacted before the event reaches persistent storage.
      * Coroutine cancellation is propagated so callers can stop promptly.
      */
     suspend fun record(
@@ -21,7 +22,7 @@ class ToolAuditRepository(private val dao: ToolAuditDao) {
                 action.actionId,
                 action.capability.name,
                 authorization.decision.name,
-                details?.take(MAX_DETAILS_LENGTH)
+                ToolAuditDetailsSanitizer.sanitize(details, MAX_DETAILS_LENGTH)
             )
         )
         true
