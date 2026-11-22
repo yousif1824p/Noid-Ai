@@ -115,6 +115,31 @@ class MemoryRetrievalEvaluationTest {
         assertEquals(1L, result.first().id)
     }
 
+
+    @Test
+    fun arabicOrthographicVariantsNormalizeToTheSameTokens() {
+        val canonical = MemoryRetrievalPolicy.tokens("اداره الملفات")
+        val variant = MemoryRetrievalPolicy.tokens("إِدارَةُ الـمِلَفّات")
+
+        assertEquals(canonical, variant)
+    }
+
+    @Test
+    fun exactNormalizedPhraseOutranksTheSameTermsInDifferentOrder() {
+        val memories = listOf(
+            memory(1, "نسخة احتياطية", "قاعدة البيانات"),
+            memory(2, "احتياطية نسخة", "قاعدة البيانات")
+        )
+
+        val scores = MemoryRetrievalPolicy.rank("نسخة احتياطية", memories)
+            .associate { it.first.id to it.second }
+
+        assertTrue(
+            "An exact normalized phrase should receive the phrase boost",
+            scores.getValue(1L) > scores.getValue(2L)
+        )
+    }
+
     private fun memory(id: Long, title: String, content: String) = UserMemory(
         id = id,
         title = title,
