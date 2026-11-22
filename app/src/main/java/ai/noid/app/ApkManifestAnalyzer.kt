@@ -2,6 +2,7 @@ package ai.noid.app
 
 enum class ApkFindingSeverity { INFO, LOW, MEDIUM, HIGH }
 enum class ApkFindingConfidence { LOW, MEDIUM, HIGH }
+enum class ApkFindingSource { ANDROID_MANIFEST_METADATA, DETERMINISTIC_RULE, AI_ADVISORY }
 enum class ApkComponentType { ACTIVITY, SERVICE, RECEIVER, PROVIDER }
 
 data class ApkExportedComponent(
@@ -30,7 +31,8 @@ data class ApkSecurityFinding(
     val description: String,
     val evidence: String,
     val recommendation: String,
-    val confidence: ApkFindingConfidence = ApkFindingConfidence.MEDIUM
+    val confidence: ApkFindingConfidence = ApkFindingConfidence.MEDIUM,
+    val source: ApkFindingSource = ApkFindingSource.DETERMINISTIC_RULE
 )
 
 data class ApkInspectionReport(
@@ -88,7 +90,8 @@ object ApkManifestAnalyzer {
             "جرد الصلاحيات المطلوبة",
             "هذه الصلاحيات معلنة في الحزمة؛ طلب الصلاحية ليس ثغرة بحد ذاته.",
             snapshot.requestedPermissions.distinct().sorted().joinToString(", "),
-            "قارن كل صلاحية بميزة فعلية، واطلبها وقت الحاجة فقط، وأزل الصلاحيات غير المستخدمة."
+            "قارن كل صلاحية بميزة فعلية، واطلبها وقت الحاجة فقط، وأزل الصلاحيات غير المستخدمة.",
+            source = ApkFindingSource.ANDROID_MANIFEST_METADATA
         )
 
         if (findings.isEmpty()) findings += ApkSecurityFinding(
