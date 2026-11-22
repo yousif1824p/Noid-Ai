@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [ChatMessage::class, UserMemory::class, ToolAuditEvent::class, LearningRecord::class, SelfDevelopmentProposal::class],
-    version = 7,
+    entities = [ChatMessage::class, UserMemory::class, ToolAuditEvent::class, LearningRecord::class, SelfDevelopmentProposal::class, TaskPlanRecoveryRecord::class],
+    version = 8,
     exportSchema = false
 )
 abstract class NoidDatabase : RoomDatabase() {
@@ -18,6 +18,7 @@ abstract class NoidDatabase : RoomDatabase() {
     abstract fun toolAuditDao(): ToolAuditDao
     abstract fun learningRecordDao(): LearningRecordDao
     abstract fun selfDevelopmentProposalDao(): SelfDevelopmentProposalDao
+    abstract fun taskPlanRecoveryDao(): TaskPlanRecoveryDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -119,6 +120,23 @@ abstract class NoidDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS task_plan_recovery (
+                        planId TEXT NOT NULL PRIMARY KEY,
+                        stepCount INTEGER NOT NULL,
+                        currentStepIndex INTEGER NOT NULL,
+                        currentStepId TEXT,
+                        state TEXT NOT NULL,
+                        dispatchStarted INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
         @Volatile
         private var INSTANCE: NoidDatabase? = null
 
@@ -135,7 +153,8 @@ abstract class NoidDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,
+                        MIGRATION_7_8
                     )
                     .build()
                     .also { INSTANCE = it }
