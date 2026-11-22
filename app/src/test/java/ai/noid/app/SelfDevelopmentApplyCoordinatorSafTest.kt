@@ -18,7 +18,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowContentResolver
 
 /**
  * Exercises the apply coordinator through Room, ToolRegistry, audit, and the
@@ -176,10 +175,7 @@ class SelfDevelopmentApplyCoordinatorSafTest {
 
         TestSafContentProvider.backingRoot = projectRoot
         TestSafContentProvider.writeCount = 0
-        ShadowContentResolver.registerProviderInternal(
-            TestSafContentProvider.AUTHORITY,
-            TestSafContentProvider()
-        )
+        registerTestSafContentProvider()
         val selectedUri = DocumentsContract.buildTreeDocumentUri(
             TestSafContentProvider.AUTHORITY,
             "root"
