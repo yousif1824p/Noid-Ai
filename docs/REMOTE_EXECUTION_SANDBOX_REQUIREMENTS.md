@@ -1,5 +1,7 @@
 # Remote untrusted-execution sandbox requirements
 
+**Current implementation status (2026-11-22): fail-closed boundary verified; sandbox service NOT implemented.** The remote engine exposes authenticated health, chat, and chat-cancellation routes only. The chat JSON schema accepts exactly `request_id` and `messages`; code, command, files, and tools fields are rejected. There is no `/v1/execute` route. Regression tests cover these boundaries. This prevents accidental activation of remote code execution, but it is not a sandbox and does not satisfy the deployment requirements below.
+
 **Status:** Requirements only. No sandbox server, container runner, code-execution endpoint, or remote execution capability is implemented.
 
 ## Security boundary
