@@ -7,7 +7,8 @@ package ai.noid.app
 data class TaskPlanExperienceDraft(
     val title: String,
     val content: String,
-    val source: String
+    val source: String,
+    val deduplicationKey: String
 )
 
 object TaskPlanExperienceDraftFactory {
@@ -29,7 +30,7 @@ object TaskPlanExperienceDraftFactory {
         if (!allAudited) return null
 
         val sequence = progress.actionIds.joinToString(" ← ")
-        val title = "خبرة تنفيذ: $sequence".take(LearningRepository.MAX_TITLE_CHARS)
+        val title = "خبرة تنفيذ: ${sequence}".take(LearningRepository.MAX_TITLE_CHARS)
         val content = buildString {
             append("اكتملت خطة محلية متعددة الخطوات بنجاح بعد تسجيل اكتمال جميع إجراءاتها في سجل التدقيق. ")
             append("عدد الخطوات: ")
@@ -41,7 +42,8 @@ object TaskPlanExperienceDraftFactory {
         return TaskPlanExperienceDraft(
             title = title,
             content = content,
-            source = "خبرة تنفيذ خطة محلية مكتملة ومدققة"
+            source = "خبرة تنفيذ خطة محلية مكتملة ومدققة",
+            deduplicationKey = "task-plan:${progress.planId}"
         )
     }
 }
