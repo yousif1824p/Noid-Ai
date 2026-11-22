@@ -12,6 +12,10 @@ object ApkReportFormatter {
         appendLine("Version: ${report.versionName ?: "unknown"}")
         appendLine("Minimum SDK: ${report.minSdkVersion ?: "unknown"}")
         appendLine("Target SDK: ${report.targetSdkVersion ?: "unknown"}")
+        appendLine("Assessment: ${report.assessment.status}")
+        appendLine("Authoritative evidence: ${report.assessment.authoritativeEvidence.size}")
+        appendLine("Conflicts: ${report.assessment.conflicts.size}")
+        appendLine("AI advisories: ${report.assessment.aiAdvisories.size}")
         sourceName?.takeIf { it.isNotBlank() }?.let { appendLine("Source file: $it") }
         appendLine("Requested permissions: ${report.requestedPermissions.size}")
         appendLine("Components: ${report.components.size}")
