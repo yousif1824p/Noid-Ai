@@ -94,6 +94,8 @@ dependencies {
     implementation("androidx.room:room-runtime:2.8.5")
     implementation("androidx.room:room-ktx:2.8.5")
     ksp("androidx.room:room-compiler:2.8.5")
+    // Generate Room implementations for @Database fixtures declared in src/test.
+    kspTest("androidx.room:room-compiler:2.8.5")
     testImplementation("androidx.room:room-testing:2.8.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
