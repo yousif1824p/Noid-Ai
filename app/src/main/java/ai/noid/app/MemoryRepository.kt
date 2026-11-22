@@ -53,11 +53,7 @@ class MemoryRepository(
         val tokens = MemoryRetrievalPolicy.tokens(query)
         if (tokens.isEmpty()) return emptyList()
         val candidates = memoryDao.getRecent(MAX_RETRIEVAL_CANDIDATES)
-        val ranked = candidates
-            .mapNotNull { memory ->
-                val score = MemoryRetrievalPolicy.score(query, tokens, memory, candidates)
-                if (score > 0.0) memory to score else null
-            }
+        val ranked = MemoryRetrievalPolicy.rank(query, candidates)
             .sortedWith(
                 compareByDescending<Pair<UserMemory, Double>> { it.second }
                     .thenByDescending { it.first.updatedAt }
