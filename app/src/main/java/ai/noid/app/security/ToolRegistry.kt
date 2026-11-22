@@ -131,6 +131,31 @@ class ToolRegistry(
         return pending
     }
 
+
+    /**
+     * Dispatches one validated plan step. Safe steps use the normal registry
+     * gateway; sensitive/destructive steps only create a one-time approval.
+     */
+    suspend fun executePlannedStep(proposal: AssistantToolProposal): PlannedToolStepDispatch {
+        val validation = AssistantToolProposalPolicy.validate(proposal, registeredActionIds())
+        if (validation is AssistantToolProposalValidation.Rejected) {
+            return PlannedToolStepDispatch.Finished(ToolRegistryResult.InvalidRequest(validation.reason))
+        }
+        validation as AssistantToolProposalValidation.Accepted
+        val adapter = synchronized(this) { adapters[proposal.actionId] }
+            ?: return PlannedToolStepDispatch.Finished(ToolRegistryResult.UnknownTool)
+        val sensitive = adapter.action.risk == ToolRisk.SENSITIVE ||
+            adapter.action.risk == ToolRisk.DESTRUCTIVE
+        if (sensitive) {
+            val pending = requestApproval(proposal.actionId, validation.request)
+                ?: return PlannedToolStepDispatch.Finished(
+                    ToolRegistryResult.InvalidRequest("تعذر إنشاء طلب موافقة صالح للخطوة.")
+                )
+            return PlannedToolStepDispatch.AwaitingApproval(pending)
+        }
+        return PlannedToolStepDispatch.Finished(invoke(proposal.actionId, validation.request))
+    }
+
     fun approveFromUser(pendingId: String): Boolean {
         val approved = approvalGate.approve(pendingId)
         refreshPendingApprovals()
