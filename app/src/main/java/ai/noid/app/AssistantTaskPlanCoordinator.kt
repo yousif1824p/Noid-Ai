@@ -104,6 +104,7 @@ class AssistantTaskPlanCoordinator(
         return try {
             session.mutex.withLock { advanceLocked(session) }
         } catch (cancelled: CancellationException) {
+            recoveryStore?.markInterruptedOrReview(plan.planId)
             removeSession(session)
             throw cancelled
         } catch (_: Exception) {
@@ -147,6 +148,7 @@ class AssistantTaskPlanCoordinator(
                 }
             }
         } catch (cancelled: CancellationException) {
+            recoveryStore?.markInterruptedOrReview(planId)
             removeSession(session)
             throw cancelled
         } catch (_: Exception) {
@@ -229,7 +231,13 @@ class AssistantTaskPlanCoordinator(
                 }
             }
         }
-        recoveryStore?.markTerminal(session.plan.planId, TaskPlanRecoveryRecord.COMPLETED)
+        if (recoveryStore != null && !recoveryStore.markTerminal(session.plan.planId, TaskPlanRecoveryRecord.COMPLETED)) {
+            removeSession(session)
+            return AssistantTaskPlanProgress.Stopped(
+                session.plan.planId, "persistence", session.results.size,
+                "اكتملت الخطوات، لكن تعذر تثبيت حالة الاكتمال في سجل الاستعادة."
+            )
+        }
         removeSession(session)
         return AssistantTaskPlanProgress.Completed(
             session.plan.planId,

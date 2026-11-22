@@ -70,6 +70,14 @@ interface TaskPlanRecoveryDao {
 
     @Query("""
         UPDATE task_plan_recovery
+        SET state = CASE WHEN dispatchStarted = 1 THEN 'REVIEW_REQUIRED' ELSE 'INTERRUPTED' END,
+            dispatchStarted = 0, updatedAt = :now
+        WHERE planId = :planId AND state IN ('RUNNING', 'WAITING_APPROVAL')
+    """)
+    suspend fun markInterruptedOrReview(planId: String, now: Long): Int
+
+    @Query("""
+        UPDATE task_plan_recovery
         SET state = :state, dispatchStarted = 0, updatedAt = :now
         WHERE planId = :planId AND state IN ('RUNNING', 'WAITING_APPROVAL')
     """)
@@ -109,6 +117,9 @@ class TaskPlanRecoveryStore(private val dao: TaskPlanRecoveryDao) {
 
     suspend fun markStepSucceeded(planId: String, nextIndex: Int): Boolean =
         dao.markStepSucceeded(planId, nextIndex, System.currentTimeMillis()) == 1
+
+    suspend fun markInterruptedOrReview(planId: String): Boolean =
+        dao.markInterruptedOrReview(planId, System.currentTimeMillis()) == 1
 
     suspend fun markTerminal(planId: String, state: String): Boolean {
         require(state in setOf(TaskPlanRecoveryRecord.COMPLETED, TaskPlanRecoveryRecord.STOPPED, TaskPlanRecoveryRecord.CANCELLED))
