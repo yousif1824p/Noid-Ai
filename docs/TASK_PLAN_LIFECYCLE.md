@@ -76,6 +76,11 @@ Current UI is a warning/review entry point, not a complete recovery-history work
 
 These tests do not prove Android process-death behavior on the target phone, nor do they verify migration of a populated v7 database.
 
+
+- Coordinator failure-path integration tests also verify that a tool exception after dispatch moves the plan to `REVIEW_REQUIRED`, rather than recording a misleading `STOPPED` state. A normal stop before any dispatch may be recorded as `STOPPED`; after dispatch begins, the state remains conservative and requires review.
+- The unexpected persistence-failure test verifies immediate `REVIEW_REQUIRED` marking when recording a successful step fails after tool execution.
+- CI run **45041155074** completed successfully for all seven jobs, including Android unit tests. The workflow remains test-only and does not package an APK.
+
 ## 7. Remaining acceptance work
 
 1. Manually test on the target Android device: start a plan, interrupt/force-stop the app at safe points before and after dispatch, reopen it, and verify it is marked `INTERRUPTED` or `REVIEW_REQUIRED` as appropriate, with no automatic replay.
