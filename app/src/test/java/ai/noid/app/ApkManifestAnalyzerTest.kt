@@ -16,6 +16,7 @@ class ApkManifestAnalyzerTest {
         )
         assertTrue(report.findings.any { it.id == "manifest.debuggable" && it.severity == ApkFindingSeverity.MEDIUM })
         assertTrue(report.findings.any { it.id == "manifest.backup_enabled" && it.severity == ApkFindingSeverity.LOW })
+        assertEquals(ApkAssessmentStatus.FINDINGS_PRESENT, report.assessment.status)
     }
 
     @Test fun flagsExportedComponentWithoutPermissionAsReviewLead() {
@@ -58,6 +59,7 @@ class ApkManifestAnalyzerTest {
         )
         assertEquals("manifest.no_initial_flags", report.findings.single().id)
         assertTrue(report.findings.single().description.contains("ليست شهادة أمان"))
+        assertEquals(ApkAssessmentStatus.INSUFFICIENT_EVIDENCE, report.assessment.status)
     }
 
     @Test fun findingsExposeTheirEvidenceSource() {
