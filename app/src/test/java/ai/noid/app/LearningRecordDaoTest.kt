@@ -15,6 +15,39 @@ import org.robolectric.RuntimeEnvironment
 @Config(sdk = [35])
 class LearningRecordDaoTest {
     @Test
+    fun uniquePlanKeyRejectsDuplicateProposalAtomically() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(
+            RuntimeEnvironment.getApplication(),
+            NoidDatabase::class.java
+        ).allowMainThreadQueries().build()
+        try {
+            val dao = database.learningRecordDao()
+            val first = dao.insertIfAbsent(
+                LearningRecord(
+                    title = "خبرة خطة",
+                    content = "تسلسل الأدوات",
+                    source = "اختبار",
+                    deduplicationKey = "task-plan:stable-1"
+                )
+            )
+            val duplicate = dao.insertIfAbsent(
+                LearningRecord(
+                    title = "خبرة مكررة",
+                    content = "تسلسل مكرر",
+                    source = "اختبار",
+                    deduplicationKey = "task-plan:stable-1"
+                )
+            )
+
+            assertTrue(first > 0)
+            assertEquals(-1L, duplicate)
+            assertEquals(1, dao.observePending().first().size)
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun onlyExplicitlyApprovedRecordsAreReturnedAsContext() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(
             RuntimeEnvironment.getApplication(),
