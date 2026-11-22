@@ -145,6 +145,11 @@ class AssistantTaskPlanCoordinatorTest {
 
     private fun adapter(toolAction: ToolAction, executeBlock: suspend () -> String) = object : NoidToolAdapter {
         override val action: ToolAction = toolAction
+        override val modelToolName: String = "test_" + toolAction.actionId.replace(Regex("[^A-Za-z0-9_]"), "_")
+        override val modelToolDescriptionJson: String =
+            """{"name":"$modelToolName","parameters":{"type":"object"}}"""
+        override fun bindModelArguments(arguments: Map<String, Any?>): Map<String, String>? =
+            arguments.mapValues { (_, value) -> value as? String ?: return null }
         override fun validate(request: ToolRequest): String? = null
         override fun grantedCapabilities(request: ToolRequest): Set<ToolCapability> = setOf(toolAction.capability)
         override suspend fun execute(request: ToolRequest): String = executeBlock()
