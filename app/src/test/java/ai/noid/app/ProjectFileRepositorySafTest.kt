@@ -95,6 +95,26 @@ class ProjectFileRepositorySafTest {
 class TestDocumentsProvider : DocumentsProvider() {
     override fun onCreate(): Boolean = true
 
+    // Robolectric's legacy ContentResolver path reaches this overload. Route it to the
+    // same DocumentsProvider callbacks used by the framework's document contract.
+    override fun query(
+        uri: android.net.Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?
+    ): Cursor? {
+        val segments = uri.pathSegments
+        return when {
+            segments.lastOrNull() == "children" ->
+                queryChildDocuments(DocumentsContract.getDocumentId(uri), projection, sortOrder)
+            segments.contains("document") ->
+                queryDocument(DocumentsContract.getDocumentId(uri), projection)
+            segments.contains("root") -> queryRoots(projection)
+            else -> throw IOException("Unsupported test DocumentsProvider URI: $uri")
+        }
+    }
+
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val columns = projection ?: ROOT_COLUMNS
         return MatrixCursor(columns).apply {
