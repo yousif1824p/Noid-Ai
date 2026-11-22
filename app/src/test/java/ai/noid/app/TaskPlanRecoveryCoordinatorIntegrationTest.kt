@@ -74,7 +74,7 @@ class TaskPlanRecoveryCoordinatorIntegrationTest {
         ))
     )
 
-    private fun registry(action: ToolAction, execute: () -> String): ToolRegistry =
+    private fun registry(action: ToolAction, executeBlock: () -> String): ToolRegistry =
         ToolRegistry(ToolExecutionCoordinator(), ToolAuditRepository(FakeAuditDao())).also { registry ->
             registry.register(object : NoidToolAdapter {
                 override val action = action
@@ -86,7 +86,7 @@ class TaskPlanRecoveryCoordinatorIntegrationTest {
                 override fun validate(request: ToolRequest): String? = null
                 override fun grantedCapabilities(request: ToolRequest): Set<ToolCapability> =
                     setOf(action.capability)
-                override suspend fun execute(request: ToolRequest): String = execute()
+                override suspend fun execute(request: ToolRequest): String = executeBlock()
             })
         }
 
