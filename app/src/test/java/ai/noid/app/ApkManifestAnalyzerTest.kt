@@ -59,4 +59,23 @@ class ApkManifestAnalyzerTest {
         assertEquals("manifest.no_initial_flags", report.findings.single().id)
         assertTrue(report.findings.single().description.contains("ليست شهادة أمان"))
     }
+
+    @Test fun findingsExposeTheirEvidenceSource() {
+        val permissionReport = ApkManifestAnalyzer.analyze(
+            ApkManifestSnapshot("example.app", null, false, false, listOf("CAMERA"), emptyList())
+        )
+        assertEquals(
+            ApkFindingSource.ANDROID_MANIFEST_METADATA,
+            permissionReport.findings.single().source
+        )
+
+        val ruleReport = ApkManifestAnalyzer.analyze(
+            ApkManifestSnapshot("example.app", "1", true, false, emptyList(), emptyList())
+        )
+        assertEquals(
+            ApkFindingSource.DETERMINISTIC_RULE,
+            ruleReport.findings.single().source
+        )
+    }
+
 }
