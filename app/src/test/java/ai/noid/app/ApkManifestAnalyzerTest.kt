@@ -78,4 +78,13 @@ class ApkManifestAnalyzerTest {
         )
     }
 
+
+    @Test fun exportedReportIncludesFindingSource() {
+        val report = ApkManifestAnalyzer.analyze(
+            ApkManifestSnapshot("example.app", null, false, false, listOf("CAMERA"), emptyList())
+        )
+        val formatted = ApkReportFormatter.format(report)
+        assertTrue(formatted.contains("Source: ANDROID_MANIFEST_METADATA"))
+    }
+
 }
