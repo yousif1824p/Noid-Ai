@@ -69,7 +69,7 @@ class AssistantTaskPlanner(
             output.toString(),
             planId = UUID.randomUUID().toString()
         )
-        val validation = AssistantTaskPlanPolicy.validate(plan, toolRegistry.registeredActionIds())
+        val validation = AssistantTaskPlanPolicy.validate(plan, catalog.map { it.actionId }.toSet())
         require(validation == null) { validation ?: "الخطة غير صالحة." }
         return plan
     }

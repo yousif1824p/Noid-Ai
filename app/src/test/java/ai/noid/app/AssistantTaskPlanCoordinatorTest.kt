@@ -102,6 +102,41 @@ class AssistantTaskPlanCoordinatorTest {
         assertTrue(coordinator.start(plan(step("write", writeAction))) is AssistantTaskPlanProgress.Rejected)
     }
 
+
+    @Test fun plannedModelToolArgumentsAreBoundByAppContextBeforeExecution() = runBlocking {
+        val action = ToolAction("project.bound-read", ToolCapability.READ_FILES, ToolRisk.READ_ONLY, "قراءة ملف محدد")
+        var receivedSelection: String? = null
+        val registry = registry()
+        registry.register(object : NoidToolAdapter {
+            override val action = action
+            override val modelToolName = "bound_read"
+            override val modelToolDescriptionJson = """{"name":"bound_read","parameters":{"type":"object"}}"""
+            override fun bindModelArguments(arguments: Map<String, Any?>): Map<String, String>? {
+                val path = arguments["path"] as? String ?: return null
+                return mapOf("path" to path, "selectionId" to "selection-from-app")
+            }
+            override fun validate(request: ToolRequest): String? =
+                if (request.arguments["selectionId"] == "selection-from-app") null else "missing app context"
+            override fun grantedCapabilities(request: ToolRequest): Set<ToolCapability> =
+                setOf(ToolCapability.READ_FILES)
+            override suspend fun execute(request: ToolRequest): String {
+                receivedSelection = request.arguments["selectionId"]
+                return "read"
+            }
+        })
+        val plan = AssistantTaskPlan(
+            "bound-plan",
+            "قراءة ملف",
+            listOf(AssistantTaskPlanStep(
+                "read",
+                AssistantToolProposal(action.actionId, mapOf("path" to "README.md"), "قراءة")
+            ))
+        )
+        val result = AssistantTaskPlanCoordinator(registry).start(plan)
+        assertTrue(result is AssistantTaskPlanProgress.Completed)
+        assertEquals("selection-from-app", receivedSelection)
+    }
+
     private fun plan(vararg steps: AssistantTaskPlanStep) = AssistantTaskPlan("test-plan", "تنفيذ مهمة اختبارية", steps.toList())
     private fun step(id: String, action: ToolAction) =
         AssistantTaskPlanStep(id, AssistantToolProposal(action.actionId, emptyMap(), "خطوة اختبار"))

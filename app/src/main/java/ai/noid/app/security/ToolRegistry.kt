@@ -151,13 +151,31 @@ class ToolRegistry(
      * gateway; sensitive/destructive steps only create a one-time approval.
      */
     suspend fun executePlannedStep(proposal: AssistantToolProposal): PlannedToolStepDispatch {
-        val validation = AssistantToolProposalPolicy.validate(proposal, registeredActionIds())
+        val adapter = synchronized(this) { adapters[proposal.actionId] }
+            ?: return PlannedToolStepDispatch.Finished(ToolRegistryResult.UnknownTool)
+        // A plan may use only explicitly model-exposed tools. Re-run the same
+        // app-owned argument binder used by ordinary model tool calls so project
+        // selection IDs and other contextual values can never be model-invented.
+        if (adapter.modelToolName.isNullOrBlank() || adapter.modelToolDescriptionJson.isNullOrBlank()) {
+            return PlannedToolStepDispatch.Finished(
+                ToolRegistryResult.InvalidRequest("الأداة غير متاحة لمخطط المهام.")
+            )
+        }
+        val boundArguments = adapter.bindModelArguments(
+            proposal.arguments.mapValues { (_, value) -> value as Any? }
+        ) ?: return PlannedToolStepDispatch.Finished(
+            ToolRegistryResult.InvalidRequest("تعذر ربط معاملات الخطوة بسياق التطبيق الحالي.")
+        )
+        val boundProposal = proposal.copy(arguments = boundArguments)
+        val validation = AssistantToolProposalPolicy.validate(boundProposal, registeredActionIds())
         if (validation is AssistantToolProposalValidation.Rejected) {
             return PlannedToolStepDispatch.Finished(ToolRegistryResult.InvalidRequest(validation.reason))
         }
         validation as AssistantToolProposalValidation.Accepted
-        val adapter = synchronized(this) { adapters[proposal.actionId] }
-            ?: return PlannedToolStepDispatch.Finished(ToolRegistryResult.UnknownTool)
+        val adapterValidation = adapter.validate(validation.request)
+        if (adapterValidation != null) {
+            return PlannedToolStepDispatch.Finished(ToolRegistryResult.InvalidRequest(adapterValidation))
+        }
         val sensitive = adapter.action.risk == ToolRisk.SENSITIVE ||
             adapter.action.risk == ToolRisk.DESTRUCTIVE
         if (sensitive) {
