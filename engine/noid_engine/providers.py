@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from .server import EngineUnavailable, TextEngine
+if TYPE_CHECKING:
+    from .server import TextEngine
 
 
 class EngineFactory(Protocol):
