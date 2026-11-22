@@ -257,6 +257,7 @@ fun ApkInspectionScreen(
                             Text("${finding.severity} · الثقة ${finding.confidence} · ${finding.title}", style = MaterialTheme.typography.titleSmall)
                             Text(finding.description, fontSize = 13.sp)
                             Text("الدليل: ${finding.evidence}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("المصدر: ${finding.source}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text("التوصية: ${finding.recommendation}", fontSize = 12.sp)
                         }
                     }
