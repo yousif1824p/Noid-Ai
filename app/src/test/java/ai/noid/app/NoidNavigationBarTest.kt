@@ -1,7 +1,7 @@
 package ai.noid.app
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -35,11 +35,11 @@ class NoidNavigationBarTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription("التنقل الرئيسي").assertExists()
+        composeRule.onNodeWithContentDescription("التنقل الرئيسي").assertIsDisplayed()
         composeRule.onNodeWithText("الذاكرة").assertIsSelected()
         composeRule.onNodeWithText("فحص APK").assertIsNotSelected()
-        composeRule.onNodeWithText("التعلّم").assertExists()
-        composeRule.onNodeWithText("تطوير NOID").assertExists()
+        composeRule.onNodeWithText("التعلّم").assertIsDisplayed()
+        composeRule.onNodeWithText("تطوير NOID").assertIsDisplayed()
     }
 
     @Test
@@ -75,6 +75,6 @@ class NoidNavigationBarTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription("مسح سجل المحادثة").assertExists()
+        composeRule.onNodeWithContentDescription("مسح سجل المحادثة").assertIsDisplayed()
     }
 }
