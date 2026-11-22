@@ -74,12 +74,7 @@ fun NoidNavigationBar(
             }
         }
         if (showClearAction) {
-            TextButton(
-                onClick = onClearConversation,
-                modifier = Modifier.semantics {
-                    contentDescription = "مسح سجل المحادثة"
-                }
-            ) {
+            TextButton(onClick = onClearConversation) {
                 Text("مسح المحادثة", maxLines = 1)
             }
         }
