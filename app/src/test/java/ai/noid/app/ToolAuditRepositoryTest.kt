@@ -36,7 +36,7 @@ class ToolAuditRepositoryTest {
     fun auditDetailsRedactBearerTokensAndNamedSecretsBeforePersistence() = runBlocking {
         val dao = FakeToolAuditDao()
         val repository = ToolAuditRepository(dao)
-        val action = ToolAction("remote-request", ToolCapability.NETWORK, ToolRisk.READ_ONLY, "طلب بعيد")
+        val action = ToolAction("remote-request", ToolCapability.READ_SCREEN, ToolRisk.READ_ONLY, "طلب بعيد")
         val details = "Authorization: Bearer bearer-value api_key=key-value password='pass-value'"
 
         assertTrue(repository.record(action, ToolAuthorization(ToolDecision.ALLOW, "مسموح"), details))
@@ -52,7 +52,7 @@ class ToolAuditRepositoryTest {
     fun auditDetailsRedactQueryCredentialsJwtAndUrlUserInfo() = runBlocking {
         val dao = FakeToolAuditDao()
         val repository = ToolAuditRepository(dao)
-        val action = ToolAction("remote-request", ToolCapability.NETWORK, ToolRisk.READ_ONLY, "طلب بعيد")
+        val action = ToolAction("remote-request", ToolCapability.READ_SCREEN, ToolRisk.READ_ONLY, "طلب بعيد")
         val token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signaturevalue"
         val details = "https://user:password@example.test/path?access_token=query-secret jwt=$token"
 
