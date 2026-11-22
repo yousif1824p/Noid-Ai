@@ -65,4 +65,21 @@ class ApkEvidenceResolverTest {
         val result = ApkEvidenceResolver.fromManifestFindings(report.findings)
         assertEquals(ApkAssessmentStatus.INSUFFICIENT_EVIDENCE, result.status)
     }
+    @Test fun manifestPermissionInventoryIsNotMisclassifiedAsSecurityEvidence() {
+        val report = ApkManifestAnalyzer.analyze(
+            ApkManifestSnapshot("example.app", null, false, false, listOf("CAMERA"), emptyList())
+        )
+        assertEquals(ApkAssessmentStatus.INSUFFICIENT_EVIDENCE, report.assessment.status)
+        assertTrue(report.assessment.authoritativeEvidence.isEmpty())
+    }
+
+    @Test fun exportedReportExplainsInconclusiveAssessment() {
+        val report = ApkManifestAnalyzer.analyze(
+            ApkManifestSnapshot("example.app", null, false, false, emptyList(), emptyList())
+        )
+        val text = ApkReportFormatter.format(report)
+        assertTrue(text.contains("Assessment: INSUFFICIENT_EVIDENCE"))
+        assertTrue(text.contains("no findings are not proof of security"))
+    }
+
 }
