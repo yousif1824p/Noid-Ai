@@ -3,7 +3,7 @@ import unittest
 import httpx
 
 from noid_engine.ollama import OllamaTextEngine
-from noid_engine.server import EngineUnavailable
+from noid_engine.engine_contract import EngineUnavailable
 
 
 class Lines(httpx.AsyncByteStream):
