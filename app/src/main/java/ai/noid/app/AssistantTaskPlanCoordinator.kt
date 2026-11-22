@@ -140,6 +140,28 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
         }
     }
 
+    /**
+     * Cancels every plan still waiting for approval. An executing plan is serialized
+     * by its session mutex; cancellation waits for that step to leave the critical
+     * section, then revokes any outstanding one-time approval ticket.
+     */
+    suspend fun cancelAll(): Int {
+        val active = synchronized(sessions) { sessions.values.toList() }
+        var cancelled = 0
+        for (session in active) {
+            session.mutex.withLock {
+                if (synchronized(sessions) { sessions[session.plan.planId] !== session }) {
+                    return@withLock
+                }
+                session.waitingApprovalId?.let(toolRegistry::cancelApproval)
+                session.waitingApprovalId = null
+                removeSession(session)
+                cancelled++
+            }
+        }
+        return cancelled
+    }
+
     /** Rejection cancels the pending ticket and prevents every later step. */
     suspend fun reject(planId: String): AssistantTaskPlanProgress {
         val session = synchronized(sessions) { sessions[planId] }

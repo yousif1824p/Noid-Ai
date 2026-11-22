@@ -146,9 +146,15 @@ class ChatViewModel(
 
     /** Cancels the active local or remote generation without deleting the conversation. */
     fun cancelGeneration() {
-        generationJob?.cancel()
+        val pendingGeneration = generationJob
+        pendingGeneration?.cancel()
         remoteChatAdapter.cancel()
         pendingModelToolCalls.cancelAll { id -> toolRegistry.cancelApproval(id) }
+        viewModelScope.launch {
+            pendingGeneration?.join()
+            taskPlanCoordinator.cancelAll()
+            synchronized(pendingPlanApprovals) { pendingPlanApprovals.clear() }
+        }
         mutableIsGenerating.value = false
     }
 
@@ -309,6 +315,8 @@ class ChatViewModel(
                 // Wait until a cancelled generation has stopped writing before
                 // deleting the conversation, avoiding a late assistant insert.
                 pendingGeneration?.join()
+                taskPlanCoordinator.cancelAll()
+                synchronized(pendingPlanApprovals) { pendingPlanApprovals.clear() }
                 repository.clearConversation()
                 mutableError.value = null
             } catch (cancelled: CancellationException) {

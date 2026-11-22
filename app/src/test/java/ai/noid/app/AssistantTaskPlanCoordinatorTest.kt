@@ -85,6 +85,22 @@ class AssistantTaskPlanCoordinatorTest {
         assertTrue(registry.pendingApprovals.value.isEmpty())
     }
 
+    @Test fun cancelAllRevokesPendingApprovalAndRemovesPlanSession() = runBlocking {
+        var writes = 0
+        val registry = registry().also {
+            it.register(adapter(writeAction) { writes++; "written" })
+        }
+        val coordinator = AssistantTaskPlanCoordinator(registry)
+        val paused = coordinator.start(plan(step("write", writeAction)))
+            as AssistantTaskPlanProgress.AwaitingApproval
+
+        assertEquals(1, coordinator.cancelAll())
+        assertTrue(registry.pendingApprovals.value.isEmpty())
+        assertTrue(coordinator.approve(paused.planId, paused.pending.id) is AssistantTaskPlanProgress.Rejected)
+        assertEquals(0, writes)
+        assertEquals(0, coordinator.cancelAll())
+    }
+
     @Test fun invalidBoundsAndDuplicateStepIdsAreRejected() = runBlocking {
         val registry = registry().also { it.register(adapter(readAction) { "read" }) }
         val coordinator = AssistantTaskPlanCoordinator(registry)
