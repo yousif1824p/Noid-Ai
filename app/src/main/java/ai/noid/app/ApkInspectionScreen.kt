@@ -235,6 +235,37 @@ fun ApkInspectionScreen(
             Text("SDK الأدنى: ${result.minSdkVersion ?: "غير معروف"} · SDK الهدف: ${result.targetSdkVersion ?: "غير معروف"}")
             Text("الصلاحيات المطلوبة: ${result.requestedPermissions.size}")
             Text("المكونات: ${result.components.size}")
+            Text("حالة تقييم الأدلة: ${result.assessment.status}")
+            Text("الأدلة الحاسمة: ${result.assessment.authoritativeEvidence.size} · التعارضات: ${result.assessment.conflicts.size} · استشارات الذكاء الاصطناعي: ${result.assessment.aiAdvisories.size}")
+            when (result.assessment.status) {
+                ApkAssessmentStatus.INSUFFICIENT_EVIDENCE -> Text(
+                    "الأدلة غير كافية لإصدار تقييم أمني؛ لم تُثبت سلامة الملف.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp
+                )
+                ApkAssessmentStatus.NO_FLAGS_WITHIN_SCOPE -> Text(
+                    "لم تظهر مؤشرات ضمن الفحوص المحددة فقط؛ هذه ليست شهادة أمان.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+                ApkAssessmentStatus.FINDINGS_PRESENT -> Text(
+                    "توجد مؤشرات تستلزم المراجعة والتحقق.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp
+                )
+                ApkAssessmentStatus.CONFLICTING_EVIDENCE -> Text(
+                    "توجد أدلة متعارضة؛ لا يمكن حسم النتيجة تلقائياً.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp
+                )
+            }
+            result.assessment.conflicts.forEach { conflict ->
+                Text(
+                    "تعارض في ${conflict.checkId}: ${conflict.flagged.size} دليل إيجابي مقابل ${conflict.notFlagged.size} دليل سلبي.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp
+                )
+            }
             Text(
                 "هذه مؤشرات مراجعة أولية وليست إثباتاً على إمكانية استغلال الثغرة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
