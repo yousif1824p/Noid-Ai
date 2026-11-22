@@ -14,6 +14,8 @@ This directory contains the optional authenticated HTTP/SSE service consumed by 
 - With no selected provider, an unknown provider, or incomplete provider settings, the service reports `unavailable`. It never fabricates assistant output.
 - Model output is plain text only; no tools, shell, files, Android permissions, or code-execution endpoint exist.
 - Provider adapters receive only chat messages. APK files, manifests, and inspection reports are not uploaded by this service.
+- `noid_engine.security_evidence` aggregates evidence by check ID, reports contradictory observations, and keeps AI advisories outside authoritative findings.
+- Empty evidence is `insufficient_evidence`; a clean result is explicitly limited to the checks observed. The aggregator has no `safe` status.
 
 ## Run
 
@@ -37,4 +39,6 @@ The example binds to loopback. For deployment, terminate TLS at a correctly conf
 - Only Ollama is currently registered as a built-in text provider. The registry is extensible, but additional local/cloud adapters are not yet implemented or verified.
 - No provider is enabled by default. A model must already be installed and explicitly selected on the server host.
 - Provider quality, deployment TLS, multi-worker cancellation, and live Android-to-server interoperability are not yet verified.
-- APK security analysis remains a separate deterministic Android-side process. AI advice, when added, must remain separately labelled and must never overwrite deterministic findings or declare an APK safe without adequate evidence.
+- The Android APK analyzer currently emits deterministic Manifest findings with explicit source labels. The Python evidence aggregator is a tested foundation for future cross-source assessment; it is not yet wired into the Android APK report flow.
+- AI advice remains a separate advisory channel. It cannot establish a clean result, override deterministic evidence, or declare an APK safe.
+- GitHub Actions automatic push and pull-request triggers are paused to preserve the repository quota. The tests-only workflow remains available through manual `workflow_dispatch`; no APK packaging job is present.
