@@ -8,7 +8,7 @@ import java.io.File
 /** Reads APK package metadata only; it never installs or executes the APK. */
 class ApkManifestInspector(private val packageManager: PackageManager) {
     companion object {
-        const val MAX_APK_BYTES: Long = 200L * 1024L * 1024L
+        const val MAX_APK_BYTES: Long = 1536L * 1024L * 1024L // 1.5 GiB; parsing remains metadata-only.
         private val archiveFlags = PackageManager.GET_ACTIVITIES or
             PackageManager.GET_SERVICES or PackageManager.GET_RECEIVERS or
             PackageManager.GET_PROVIDERS or PackageManager.GET_PERMISSIONS
@@ -17,7 +17,7 @@ class ApkManifestInspector(private val packageManager: PackageManager) {
     fun inspect(apkFile: File): ApkInspectionReport {
         require(apkFile.isFile) { "ملف APK غير موجود." }
         require(apkFile.extension.equals("apk", ignoreCase = true)) { "الملف المحدد ليس APK." }
-        require(apkFile.length() in 1..MAX_APK_BYTES) { "حجم APK غير صالح أو يتجاوز الحد المسموح (200 ميغابايت)." }
+        require(apkFile.length() in 1..MAX_APK_BYTES) { "حجم APK غير صالح أو يتجاوز الحد المسموح (1.5 غيغابايت)." }
 
         val info = readPackageInfo(apkFile)
             ?: throw IllegalArgumentException("تعذر قراءة بيانات الحزمة. قد يكون الملف تالفاً أو غير صالح.")
