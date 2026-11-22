@@ -1,6 +1,7 @@
 package ai.noid.app
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -55,9 +56,9 @@ class NoidNavigationBarTest {
             }
         }
 
-        composeRule.onNodeWithText("الصوت").performScrollTo().performClick()
+        composeRule.onNodeWithText("تحليل الصور").performScrollTo().performClick()
         composeRule.runOnIdle {
-            assertEquals(NoidDestination.VOICE, selected)
+            assertEquals(NoidDestination.VISION, selected)
         }
     }
 
