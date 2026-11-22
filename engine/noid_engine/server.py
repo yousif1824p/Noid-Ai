@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
+from .engine_contract import EngineUnavailable, MAX_OUTPUT_CHARS
 from .providers import (
     ProviderConfigurationError,
     ProviderRegistry,
@@ -25,15 +26,10 @@ MAX_MESSAGES = 20
 MAX_MESSAGE_CHARS = 32_000
 MAX_CONTEXT_BYTES = 65_536
 MAX_REQUEST_ID_CHARS = 64
-MAX_OUTPUT_CHARS = 32_000
 MAX_DELTA_CHARS = 8_000
 MAX_ACTIVE_REQUESTS = 4
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._~-]{1,64}$")
 ALLOWED_ROLES = {"user", "assistant"}
-
-
-class EngineUnavailable(Exception):
-    """Raised when no inference backend is configured."""
 
 
 class TextEngine(Protocol):
