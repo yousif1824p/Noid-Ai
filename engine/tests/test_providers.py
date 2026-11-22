@@ -20,6 +20,10 @@ class ProviderRegistryTests(unittest.TestCase):
         registry = ProviderRegistry()
         self.assertEqual(registry.names(), ())
 
+    def test_default_registry_exposes_both_local_adapters(self):
+        from noid_engine.providers import default_provider_registry
+        self.assertEqual(default_provider_registry().names(), ("local_openai", "ollama"))
+
     def test_explicit_provider_selection_returns_registered_engine(self):
         registry = ProviderRegistry()
         expected = StubEngine()
