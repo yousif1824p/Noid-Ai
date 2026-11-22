@@ -62,6 +62,16 @@ android {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            // Robolectric fetches android-all jars at test runtime, outside Gradle's
+            // dependency resolver. Use Maven Central's canonical host to avoid the
+            // repo1 endpoint that failed during CI runtime artifact downloads.
+            it.systemProperty(
+                "robolectric.dependency.repo.url",
+                "https://repo.maven.apache.org/maven2"
+            )
+            it.systemProperty("robolectric.dependency.repo.id", "mavenCentral")
+        }
     }
 }
 
