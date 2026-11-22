@@ -140,6 +140,34 @@ class MemoryRetrievalEvaluationTest {
         )
     }
 
+
+    @Test
+    fun blankAndStopWordOnlyQueriesReturnNoRankedMemories() {
+        val memories = listOf(memory(1, "إعدادات الواجهة", "ألوان الخط وحجم النص"))
+
+        assertTrue(MemoryRetrievalPolicy.rank("   ", memories).isEmpty())
+        assertTrue(MemoryRetrievalPolicy.rank("إلى في من", memories).isEmpty())
+    }
+
+    @Test
+    fun unrelatedQueryDoesNotReturnPartialLexicalMatches() {
+        val memories = listOf(
+            memory(1, "تفضيل اللغة", "العربية الفصحى"),
+            memory(2, "إعدادات الواجهة", "ألوان وحجم الخط")
+        )
+
+        assertTrue(
+            MemoryRetrievalPolicy.rank("quantum mechanics", memories).isEmpty()
+        )
+    }
+
+    @Test
+    fun tokenizationIsBoundedForLongUntrustedText() {
+        val longText = (1..100).joinToString(" ") { "كلمة$it" }
+
+        assertEquals(64, MemoryRetrievalPolicy.tokens(longText).size)
+    }
+
     private fun memory(id: Long, title: String, content: String) = UserMemory(
         id = id,
         title = title,
