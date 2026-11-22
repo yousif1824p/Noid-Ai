@@ -1,12 +1,14 @@
 package ai.noid.app
 
+import android.content.ContentProvider
+import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
+import android.os.Bundle
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
-import android.provider.DocumentsProvider
 import java.io.File
 import java.io.IOException
 import java.util.Base64
@@ -34,8 +36,8 @@ class ProjectFileRepositorySafTest {
 
     @After
     fun tearDown() {
-        TestDocumentsProvider.failNextWrite = false
-        TestDocumentsProvider.failNextRead = false
+        TestSafContentProvider.failNextWrite = false
+        TestSafContentProvider.failNextRead = false
         root.deleteRecursively()
         backups.deleteRecursively()
     }
@@ -43,9 +45,9 @@ class ProjectFileRepositorySafTest {
     @Test
     fun documentsProviderChildQueryExposesOpaqueDocumentIds() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
-        TestDocumentsProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
-        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        TestSafContentProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, "root")
         val cursor = context.contentResolver.query(
             childrenUri,
@@ -81,10 +83,10 @@ class ProjectFileRepositorySafTest {
     @Test
     fun readsWritesBacksUpAndRestoresThroughDocumentsProvider() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
-        TestDocumentsProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
+        TestSafContentProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
 
-        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
         assertEquals("original", repository.readText(treeUri, "notes.txt"))
 
@@ -104,9 +106,9 @@ class ProjectFileRepositorySafTest {
     fun sourceFreshnessReadsProviderContentAndDetectsConcurrentChanges() {
         val original = "class Worker { val count = 1 }"
         File(root, "Worker.kt").writeText(original, Charsets.UTF_8)
-        TestDocumentsProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
-        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        TestSafContentProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
 
         assertEquals(
@@ -133,12 +135,12 @@ class ProjectFileRepositorySafTest {
     fun providerReadFailureFailsClosedAsUnavailableSource() {
         val original = "original"
         File(root, "notes.txt").writeText(original, Charsets.UTF_8)
-        TestDocumentsProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
-        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        TestSafContentProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
 
-        TestDocumentsProvider.failNextRead = true
+        TestSafContentProvider.failNextRead = true
         assertEquals(
             SelfDevelopmentSourceFreshnessStatus.SOURCE_UNAVAILABLE,
             repository.verifySourceUnchanged(
@@ -152,12 +154,12 @@ class ProjectFileRepositorySafTest {
     @Test
     fun providerWriteFailureRestoresOriginalAndRetainsRecoveryBackup() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
-        TestDocumentsProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
-        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        TestSafContentProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
 
-        TestDocumentsProvider.failNextWrite = true
+        TestSafContentProvider.failNextWrite = true
         try {
             repository.writeText(treeUri, "notes.txt", "must-not-remain")
             throw AssertionError("Expected provider write failure")
@@ -170,65 +172,42 @@ class ProjectFileRepositorySafTest {
     }
 }
 
-/** Minimal DocumentsProvider backed by a temporary host directory. */
-class TestDocumentsProvider : DocumentsProvider() {
+/**
+ * ContentProvider test double implementing the URI/call surface consumed by
+ * androidx DocumentFile. Robolectric's DocumentsProvider legacy query path is
+ * final and deliberately unsupported, so this exercises DocumentFile without
+ * pretending to be a physical Android SAF provider.
+ */
+class TestSafContentProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
-    /**
-     * Robolectric dispatches ContentResolver.query through this legacy overload.
-     * DocumentsProvider's default implementation rejects that format, so route
-     * the three SAF URI shapes directly to the corresponding provider methods.
-     */
     override fun query(
         uri: Uri,
         projection: Array<out String>?,
         selection: String?,
         selectionArgs: Array<out String>?,
         sortOrder: String?
-    ): Cursor = when {
-        uri.lastPathSegment == "children" ->
-            queryChildDocuments(DocumentsContract.getDocumentId(uri), projection, sortOrder)
-        uri.pathSegments.contains("document") ->
-            queryDocument(DocumentsContract.getDocumentId(uri), projection)
-        else -> queryRoots(projection)
-    }
-
-    override fun queryRoots(projection: Array<out String>?): Cursor {
-        val columns = projection ?: ROOT_COLUMNS
-        return MatrixCursor(columns).apply {
-            newRow().apply {
-                add(DocumentsContract.Root.COLUMN_ROOT_ID, "root")
-                add(DocumentsContract.Root.COLUMN_DOCUMENT_ID, "root")
-                add(DocumentsContract.Root.COLUMN_TITLE, "NOID test tree")
-                add(DocumentsContract.Root.COLUMN_FLAGS, DocumentsContract.Root.FLAG_SUPPORTS_CREATE)
-                add(DocumentsContract.Root.COLUMN_MIME_TYPES, "*/*")
-                add(DocumentsContract.Root.COLUMN_AVAILABLE_BYTES, 1024L * 1024L)
-            }
-        }
-    }
-
-    override fun queryDocument(documentId: String, projection: Array<out String>?): Cursor =
-        documentCursor(documentId, projection)
-
-    override fun queryChildDocuments(
-        parentDocumentId: String,
-        projection: Array<out String>?,
-        sortOrder: String?
     ): Cursor {
-        val parent = fileFor(parentDocumentId)
         val columns = projection ?: DOCUMENT_COLUMNS
-        return MatrixCursor(columns).apply {
-            parent.listFiles().orEmpty().forEach { child ->
-                addDocumentRow(this, columns, idFor(child), child)
+        return when {
+            uri.lastPathSegment == "children" -> {
+                val parent = fileFor(DocumentsContract.getDocumentId(uri))
+                MatrixCursor(columns).apply {
+                    parent.listFiles().orEmpty().forEach { child ->
+                        addDocumentRow(this, columns, idFor(child), child)
+                    }
+                }
             }
+            uri.pathSegments.contains("document") -> {
+                val id = DocumentsContract.getDocumentId(uri)
+                MatrixCursor(columns).apply { addDocumentRow(this, columns, id, fileFor(id)) }
+            }
+            else -> MatrixCursor(columns)
         }
     }
 
-    override fun openDocument(
-        documentId: String,
-        mode: String,
-        signal: CancellationSignal?
-    ): ParcelFileDescriptor {
+    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+        val id = DocumentsContract.getDocumentId(uri)
         if (!mode.contains('w') && failNextRead) {
             failNextRead = false
             throw IOException("Injected provider read failure")
@@ -243,36 +222,58 @@ class TestDocumentsProvider : DocumentsProvider() {
         } else {
             ParcelFileDescriptor.MODE_READ_ONLY
         }
-        return ParcelFileDescriptor.open(fileFor(documentId), flags)
+        return ParcelFileDescriptor.open(fileFor(id), flags)
     }
 
-    override fun createDocument(
-        parentDocumentId: String,
-        mimeType: String,
-        displayName: String
-    ): String {
-        val created = File(fileFor(parentDocumentId), displayName)
-        check(created.createNewFile()) { "Document already exists" }
-        return idFor(created)
-    }
-
-    override fun deleteDocument(documentId: String) {
-        check(fileFor(documentId).delete())
-    }
-
-    override fun renameDocument(documentId: String, displayName: String): String {
-        val source = fileFor(documentId)
-        val destination = File(source.parentFile, displayName)
-        check(source.renameTo(destination))
-        return idFor(destination)
-    }
-
-    private fun documentCursor(documentId: String, projection: Array<out String>?): Cursor {
-        val columns = projection ?: DOCUMENT_COLUMNS
-        return MatrixCursor(columns).apply {
-            addDocumentRow(this, columns, documentId, fileFor(documentId))
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
+        val result = Bundle()
+        when (method) {
+            DocumentsContract.METHOD_CREATE_DOCUMENT -> {
+                val parent = fileFor(arg ?: throw IOException("Missing parent document ID"))
+                val name = extras?.getString(DocumentsContract.EXTRA_DISPLAY_NAME)
+                    ?: throw IOException("Missing display name")
+                val created = File(parent, name)
+                check(created.createNewFile()) { "Document already exists" }
+                result.putParcelable(
+                    DocumentsContract.EXTRA_URI,
+                    DocumentsContract.buildDocumentUri(AUTHORITY, idFor(created))
+                )
+            }
+            DocumentsContract.METHOD_DELETE_DOCUMENT -> {
+                check(fileFor(arg ?: throw IOException("Missing document ID")).delete())
+            }
+            DocumentsContract.METHOD_RENAME_DOCUMENT -> {
+                val source = fileFor(arg ?: throw IOException("Missing document ID"))
+                val name = extras?.getString(DocumentsContract.EXTRA_DISPLAY_NAME)
+                    ?: throw IOException("Missing display name")
+                val destination = File(source.parentFile, name)
+                check(source.renameTo(destination))
+                result.putParcelable(
+                    DocumentsContract.EXTRA_URI,
+                    DocumentsContract.buildDocumentUri(AUTHORITY, idFor(destination))
+                )
+            }
+            else -> throw UnsupportedOperationException("Unsupported test provider call: $method")
         }
+        return result
     }
+
+    override fun getType(uri: Uri): String =
+        if (uri.lastPathSegment == "children") "vnd.android.cursor.dir/vnd.android.document"
+        else "text/plain"
+
+    override fun insert(uri: Uri, values: ContentValues?): Uri? =
+        throw UnsupportedOperationException("Insert is not part of the DocumentFile contract")
+
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int =
+        if (fileFor(DocumentsContract.getDocumentId(uri)).delete()) 1 else 0
+
+    override fun update(
+        uri: Uri,
+        values: ContentValues?,
+        selection: String?,
+        selectionArgs: Array<out String>?
+    ): Int = throw UnsupportedOperationException("Update is not part of the DocumentFile contract")
 
     private fun addDocumentRow(
         cursor: MatrixCursor,
@@ -319,14 +320,6 @@ class TestDocumentsProvider : DocumentsProvider() {
         @Volatile var failNextWrite: Boolean = false
         @Volatile var failNextRead: Boolean = false
 
-        private val ROOT_COLUMNS = arrayOf(
-            DocumentsContract.Root.COLUMN_ROOT_ID,
-            DocumentsContract.Root.COLUMN_DOCUMENT_ID,
-            DocumentsContract.Root.COLUMN_TITLE,
-            DocumentsContract.Root.COLUMN_FLAGS,
-            DocumentsContract.Root.COLUMN_MIME_TYPES,
-            DocumentsContract.Root.COLUMN_AVAILABLE_BYTES
-        )
         private val DOCUMENT_COLUMNS = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
