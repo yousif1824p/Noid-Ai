@@ -38,6 +38,9 @@ class ProjectFileRepositorySafTest {
     fun tearDown() {
         TestSafContentProvider.failNextWrite = false
         TestSafContentProvider.failNextRead = false
+        TestSafContentProvider.cancelReadAfterNextWrite = false
+        TestSafContentProvider.cancelNextRead = false
+        TestSafContentProvider.writeCount = 0
         root.deleteRecursively()
         backups.deleteRecursively()
     }
@@ -208,9 +211,20 @@ class TestSafContentProvider : ContentProvider() {
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val id = DocumentsContract.getDocumentId(uri)
+        if (!mode.contains('w') && cancelNextRead) {
+            cancelNextRead = false
+            throw kotlinx.coroutines.CancellationException("Injected provider read cancellation")
+        }
         if (!mode.contains('w') && failNextRead) {
             failNextRead = false
             throw IOException("Injected provider read failure")
+        }
+        if (mode.contains('w')) {
+            writeCount++
+            if (cancelReadAfterNextWrite) {
+                cancelReadAfterNextWrite = false
+                cancelNextRead = true
+            }
         }
         if (mode.contains('w') && failNextWrite) {
             failNextWrite = false
@@ -319,6 +333,9 @@ class TestSafContentProvider : ContentProvider() {
         lateinit var backingRoot: File
         @Volatile var failNextWrite: Boolean = false
         @Volatile var failNextRead: Boolean = false
+        @Volatile var cancelReadAfterNextWrite: Boolean = false
+        @Volatile var cancelNextRead: Boolean = false
+        @Volatile var writeCount: Int = 0
 
         private val DOCUMENT_COLUMNS = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
