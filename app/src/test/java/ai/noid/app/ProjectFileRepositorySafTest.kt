@@ -46,6 +46,15 @@ class ProjectFileRepositorySafTest {
 
         val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
+        val childUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, "root")
+        val childCursor = context.contentResolver.query(
+            childUri,
+            arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID, DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+            null,
+            null,
+            null
+        )
+        assertTrue("Provider child query must return the seeded file", childCursor?.use { it.moveToFirst() } == true)
 
         assertEquals("original", repository.readText(treeUri, "notes.txt"))
 
