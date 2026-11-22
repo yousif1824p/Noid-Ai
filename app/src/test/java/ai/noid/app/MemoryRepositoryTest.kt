@@ -85,6 +85,41 @@ class MemoryRepositoryTest {
         assertEquals(1_000, dao.memories.value.last().content.length)
     }
 
+
+    @Test
+    fun retrievesMostRelevantApprovedMemoryInsteadOfOnlyNewestRecords() = runBlocking {
+        val dao = FakeUserMemoryDao()
+        val repository = MemoryRepository(dao)
+        repository.saveApprovedMemory("تفضيل قديم", "أفضّل اللغة العربية الفصحى في الشرح", "موافقة المستخدم")
+        repeat(12) { index ->
+            repository.saveApprovedMemory("ملاحظة حديثة $index", "محتوى لا يرتبط بالمهمة", "موافقة")
+        }
+
+        val context = repository.relevantContext("أريد شرحاً باللغة العربية الفصحى")
+
+        assertEquals("تفضيل قديم", context.first().title)
+    }
+
+    @Test
+    fun arabicMemoryRetrievalNormalizesAlefDiacriticsAndTaaMarbuta() = runBlocking {
+        val dao = FakeUserMemoryDao()
+        val repository = MemoryRepository(dao)
+        repository.saveApprovedMemory("إعدادات الواجهة", "اللغة المفضّلة هي العربيّة", "موافقة")
+
+        val context = repository.relevantContext("اعدادات الواجهه واللغه العربيه")
+
+        assertEquals("إعدادات الواجهة", context.first().title)
+    }
+
+    @Test
+    fun irrelevantQueryDoesNotInjectUnrelatedMemories() = runBlocking {
+        val dao = FakeUserMemoryDao()
+        val repository = MemoryRepository(dao)
+        repository.saveApprovedMemory("تفضيل اللغة", "العربية الفصحى", "موافقة")
+
+        assertEquals(emptyList<UserMemory>(), repository.relevantContext("quantum mechanics"))
+    }
+
     @Test
     fun updatesMemoryAndRefreshesTimestamp() = runBlocking {
         val dao = FakeUserMemoryDao()

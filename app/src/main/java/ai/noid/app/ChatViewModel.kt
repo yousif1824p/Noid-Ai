@@ -202,13 +202,13 @@ class ChatViewModel(
                         )
                         return@launch
                     }
+                    val task = normalized.substring(planPrefix.length).trim()
                     val request = AssistantTurnRequest(
                         conversation = repository.currentConversation(),
-                        approvedMemories = memoryRepository.recentContext(),
+                        approvedMemories = memoryRepository.relevantContext(task),
                         approvedLessons = learningRepository.approvedContext(),
                         toolProviders = emptyList()
                     )
-                    val task = normalized.substring(planPrefix.length).trim()
                     val plan = taskPlanner.createPlan(request, task)
                     handleTaskPlanProgress(taskPlanCoordinator.start(plan))
                     return@launch
