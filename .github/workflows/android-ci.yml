@@ -1,10 +1,8 @@
 name: Android CI (tests only)
 
+# Automatic runs are paused to preserve the repository's Actions quota.
+# Run this workflow manually after quota is available.
 on:
-  push:
-    branches: [main, feature/wakeword-runtime-integration]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
