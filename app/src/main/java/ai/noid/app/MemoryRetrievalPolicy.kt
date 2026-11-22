@@ -5,7 +5,8 @@ import kotlin.math.ln
 
 /**
  * Deterministic, bounded BM25-style lexical ranking for user-approved memories.
- * This is lexical retrieval, not embedding-based semantic search.
+ * Corpus tokenization, document frequencies, and field averages are computed once
+ * per query. This is lexical retrieval, not embedding-based semantic search.
  */
 object MemoryRetrievalPolicy {
     private val stopWords = setOf(
@@ -21,73 +22,112 @@ object MemoryRetrievalPolicy {
     private const val CONTENT_WEIGHT = 1.0
     private const val SOURCE_WEIGHT = 0.15
 
-    fun tokens(value: String): Set<String> =
+    private data class PreparedMemory(
+        val memory: UserMemory,
+        val title: List<String>,
+        val content: List<String>,
+        val source: List<String>
+    ) {
+        val documentTerms: Set<String> = title.toSet() + content + source
+    }
+
+    private data class FieldStats(
+        val averageLength: Double,
+        val documentFrequency: Map<String, Int>
+    )
+
+    fun tokens(value: String): Set<String> = tokenList(value).toSet()
+
+    /**
+     * Scores the complete bounded candidate set in one corpus pass.
+     * The caller is responsible for bounding candidates before calling.
+     */
+    fun rank(query: String, candidates: List<UserMemory>): List<Pair<UserMemory, Double>> {
+        if (candidates.isEmpty()) return emptyList()
+        val queryTerms = tokens(query)
+        if (queryTerms.isEmpty()) return emptyList()
+
+        val prepared = candidates.map { memory ->
+            PreparedMemory(
+                memory = memory,
+                title = tokenList(memory.title),
+                content = tokenList(memory.content),
+                source = tokenList(memory.source)
+            )
+        }
+
+        val titleStats = stats(prepared) { it.title }
+        val contentStats = stats(prepared) { it.content }
+        val sourceStats = stats(prepared) { it.source }
+        val documentCount = prepared.size.toDouble()
+        val normalizedQuery = normalize(query).trim()
+
+        return prepared.mapNotNull { candidate ->
+            val matched = queryTerms.intersect(candidate.documentTerms)
+            if (matched.isEmpty()) return@mapNotNull null
+
+            var lexicalScore = 0.0
+            for (term in queryTerms) {
+                lexicalScore += fieldScore(candidate.title, titleStats, term, documentCount, TITLE_WEIGHT)
+                lexicalScore += fieldScore(candidate.content, contentStats, term, documentCount, CONTENT_WEIGHT)
+                lexicalScore += fieldScore(candidate.source, sourceStats, term, documentCount, SOURCE_WEIGHT)
+            }
+
+            val coverage = matched.size.toDouble() / queryTerms.size
+            val phraseBoost = if (
+                normalizedQuery.length >= 3 &&
+                (normalize(candidate.memory.title).contains(normalizedQuery) ||
+                    normalize(candidate.memory.content).contains(normalizedQuery))
+            ) 1.5 else 0.0
+            val score = lexicalScore + coverage * 1.5 + phraseBoost
+            if (score > 0.0) candidate.memory to score else null
+        }
+    }
+
+    private fun stats(
+        corpus: List<PreparedMemory>,
+        field: (PreparedMemory) -> List<String>
+    ): FieldStats {
+        val fields = corpus.map(field)
+        val frequencies = HashMap<String, Int>()
+        for (candidate in corpus) {
+            for (term in field(candidate).toSet()) {
+                frequencies[term] = (frequencies[term] ?: 0) + 1
+            }
+        }
+        return FieldStats(
+            averageLength = fields.sumOf { it.size }.toDouble()
+                .div(fields.size.coerceAtLeast(1)).coerceAtLeast(1.0),
+            documentFrequency = frequencies
+        )
+    }
+
+    private fun fieldScore(
+        field: List<String>,
+        stats: FieldStats,
+        term: String,
+        documentCount: Double,
+        weight: Double
+    ): Double {
+        val frequency = field.count { it == term }
+        if (frequency == 0) return 0.0
+        val documentFrequency = stats.documentFrequency[term] ?: 0
+        val inverseDocumentFrequency = ln(
+            1.0 + (documentCount - documentFrequency + 0.5) /
+                (documentFrequency + 0.5)
+        )
+        val lengthNorm = K1 * (1.0 - B + B * field.size / stats.averageLength)
+        val termFrequency = frequency * (K1 + 1.0) / (frequency + lengthNorm)
+        return weight * inverseDocumentFrequency * termFrequency
+    }
+
+    private fun tokenList(value: String): List<String> =
         normalize(value)
             .split(Regex("[^\\p{L}\\p{N}]+"))
             .asSequence()
             .filter { it.length >= 2 && it !in normalizedStopWords }
             .take(64)
-            .toSet()
-
-    fun score(
-        query: String,
-        queryTokens: Set<String>,
-        memory: UserMemory,
-        corpus: List<UserMemory>
-    ): Double {
-        if (queryTokens.isEmpty() || corpus.isEmpty()) return 0.0
-
-        val titleTokens = tokens(memory.title).toList()
-        val contentTokens = tokens(memory.content).toList()
-        val sourceTokens = tokens(memory.source).toList()
-        val allTokens = titleTokens.toSet() + contentTokens + sourceTokens
-        val matched = queryTokens.intersect(allTokens)
-        if (matched.isEmpty()) return 0.0
-
-        val corpusFields = corpus.map { candidate ->
-            Triple(tokens(candidate.title), tokens(candidate.content), tokens(candidate.source))
-        }
-        val averageTitleLength = corpusFields.map { it.first.size }.average().coerceAtLeast(1.0)
-        val averageContentLength = corpusFields.map { it.second.size }.average().coerceAtLeast(1.0)
-        val averageSourceLength = corpusFields.map { it.third.size }.average().coerceAtLeast(1.0)
-
-        fun fieldScore(
-            field: List<String>,
-            averageLength: Double,
-            term: String,
-            weight: Double
-        ): Double {
-            val frequency = field.count { it == term }
-            if (frequency == 0) return 0.0
-            val documentFrequency = corpusFields.count { (title, content, source) ->
-                term in title || term in content || term in source
-            }
-            val documentCount = corpusFields.size.toDouble()
-            val inverseDocumentFrequency = ln(
-                1.0 + (documentCount - documentFrequency + 0.5) /
-                    (documentFrequency + 0.5)
-            )
-            val lengthNorm = K1 * (1.0 - B + B * field.size / averageLength)
-            val termFrequency = frequency * (K1 + 1.0) / (frequency + lengthNorm)
-            return weight * inverseDocumentFrequency * termFrequency
-        }
-
-        var lexicalScore = 0.0
-        for (term in queryTokens) {
-            lexicalScore += fieldScore(titleTokens, averageTitleLength, term, TITLE_WEIGHT)
-            lexicalScore += fieldScore(contentTokens, averageContentLength, term, CONTENT_WEIGHT)
-            lexicalScore += fieldScore(sourceTokens, averageSourceLength, term, SOURCE_WEIGHT)
-        }
-
-        val coverage = matched.size.toDouble() / queryTokens.size
-        val normalizedQuery = normalize(query).trim()
-        val phraseBoost = if (
-            normalizedQuery.length >= 3 &&
-            (normalize(memory.title).contains(normalizedQuery) ||
-                normalize(memory.content).contains(normalizedQuery))
-        ) 1.5 else 0.0
-        return lexicalScore + coverage * 1.5 + phraseBoost
-    }
+            .toList()
 
     private fun normalize(value: String): String {
         val decomposed = Normalizer.normalize(value, Normalizer.Form.NFD)
