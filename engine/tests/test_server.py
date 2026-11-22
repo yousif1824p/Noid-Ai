@@ -496,3 +496,33 @@ class RemoteEngineTransportBoundaryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second.status_code, 404)
         self.assertEqual(first.json()["error_code"], "unavailable")
         self.assertEqual(second.json()["error_code"], "unavailable")
+
+
+    async def test_chat_schema_rejects_untrusted_execution_fields(self):
+        forbidden_fields = (
+            {"code": "print('noid')"},
+            {"command": "id"},
+            {"files": [{"path": "x", "content": "y"}]},
+            {"tools": [{"name": "shell"}]},
+        )
+        async with self.make_client(FakeEngine()) as client:
+            for index, extra in enumerate(forbidden_fields):
+                payload = {
+                    "request_id": f"req-no-exec-{index}",
+                    "messages": [{"role": "user", "content": "hello"}],
+                    **extra,
+                }
+                response = await client.post(
+                    "/v1/chat", headers=self.headers(), json=payload
+                )
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["error_code"], "invalid_request")
+
+    async def test_remote_execution_endpoint_is_not_exposed(self):
+        async with self.make_client(FakeEngine()) as client:
+            response = await client.post(
+                "/v1/execute",
+                headers=self.headers(),
+                json={"code": "print('must not run')"},
+            )
+        self.assertEqual(response.status_code, 404)
