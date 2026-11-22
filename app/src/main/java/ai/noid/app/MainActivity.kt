@@ -1,6 +1,5 @@
 package ai.noid.app
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -49,14 +48,6 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        if (VoiceShortcutPolicy.shouldOpenVoiceScreen(intent.getStringExtra(VoiceShortcutPolicy.EXTRA_OPEN_SCREEN))) {
-            recreate()
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val database = NoidDatabase.getInstance(applicationContext)
@@ -186,9 +177,6 @@ class MainActivity : ComponentActivity() {
                     toolRegistry = toolRegistry,
                     engine = engine,
                     visionEngine = visionEngine,
-                    initialShowVoiceScreen = VoiceShortcutPolicy.shouldOpenVoiceScreen(
-                        intent?.getStringExtra(VoiceShortcutPolicy.EXTRA_OPEN_SCREEN)
-                    ),
                     onProjectTreeSelected = { uri -> selectedProjectTree.select(uri) },
                     onRequestProjectFileRead = { path ->
                         val selection = selectedProjectTree.current()
@@ -223,7 +211,6 @@ private fun NoidChatScreen(
     toolRegistry: ToolRegistry,
     engine: LiteRtLmAssistantEngine,
     visionEngine: LiteRtLmVisionEngine,
-    initialShowVoiceScreen: Boolean = false,
     onProjectTreeSelected: (android.net.Uri) -> Unit,
     onRequestProjectFileRead: (String) -> Unit,
     chatRepository: ChatRepository,
@@ -248,7 +235,6 @@ private fun NoidChatScreen(
     var showModelScreen by remember { mutableStateOf(false) }
     var showChatSearch by remember { mutableStateOf(false) }
     var showVisionScreen by remember { mutableStateOf(false) }
-    var showVoiceScreen by remember { mutableStateOf(initialShowVoiceScreen) }
     var showRemoteSettings by remember { mutableStateOf(false) }
     var remoteSettings by remember { mutableStateOf(remoteSettingsStore.read()) }
 
@@ -311,7 +297,6 @@ private fun NoidChatScreen(
                                 showModelScreen -> "حالة محرك الذكاء الاصطناعي المحلي"
                                 showChatSearch -> "بحث محلي في سجل المحادثات"
                                 showVisionScreen -> "اختيار صورة والتحقق منها"
-                                showVoiceScreen -> "إعداد الصوت والتنشيط"
                                 showRemoteSettings -> "إعداد الاتصال البعيد الاختياري"
                                 else -> "مساعدك الشخصي · تخزين محلي"
                             },
@@ -331,7 +316,6 @@ private fun NoidChatScreen(
                     showModelScreen -> NoidDestination.MODEL
                     showChatSearch -> NoidDestination.CHAT_SEARCH
                     showVisionScreen -> NoidDestination.VISION
-                    showVoiceScreen -> NoidDestination.VOICE
                     showRemoteSettings -> NoidDestination.REMOTE
                     else -> NoidDestination.CHAT
                 }
@@ -350,7 +334,6 @@ private fun NoidChatScreen(
                         showModelScreen = next == NoidDestination.MODEL
                         showChatSearch = next == NoidDestination.CHAT_SEARCH
                         showVisionScreen = next == NoidDestination.VISION
-                        showVoiceScreen = next == NoidDestination.VOICE
                         showRemoteSettings = next == NoidDestination.REMOTE
                     },
                     onClearConversation = { showClearConfirmation = true }
@@ -384,11 +367,6 @@ private fun NoidChatScreen(
                 ChatSearchScreen(viewModel = viewModel)
             } else if (showVisionScreen) {
                 VisionImagePickerScreen(toolRegistry = toolRegistry, visionEngine = visionEngine)
-            } else if (showVoiceScreen) {
-                VoiceSetupScreen(onRecognizedText = { recognized ->
-                    draft = recognized
-                    showVoiceScreen = false
-                })
             } else if (showRemoteSettings) {
                 RemoteConnectorSettingsScreen(
                     settings = remoteSettings,
