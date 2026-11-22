@@ -235,6 +235,7 @@ private fun NoidChatScreen(
     val engineStatus by viewModel.engineStatus.collectAsState()
     val isGenerating by viewModel.isGenerating.collectAsState()
     val error by viewModel.error.collectAsState()
+    val recoveryRecords by viewModel.recoveryRecords.collectAsState()
     var draft by remember { mutableStateOf("") }
     var showClearConfirmation by remember { mutableStateOf(false) }
     var showMemoryScreen by remember { mutableStateOf(false) }
@@ -401,6 +402,7 @@ private fun NoidChatScreen(
             } else {
                 ChatContent(
                     messages = messages,
+                    recoveryRecords = recoveryRecords,
                     engineStatus = engineStatus,
                     isGenerating = isGenerating,
                     error = error,
@@ -425,6 +427,7 @@ private fun NoidChatScreen(
 @Composable
 private fun ColumnScope.ChatContent(
     messages: List<ChatMessage>,
+    recoveryRecords: List<TaskPlanRecoveryRecord>,
     engineStatus: AssistantEngineStatus,
     isGenerating: Boolean,
     error: String?,
@@ -435,6 +438,35 @@ private fun ColumnScope.ChatContent(
     remoteEnabled: Boolean,
     onSendRemote: () -> Unit
 ) {
+    if (recoveryRecords.isNotEmpty()) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            color = Color(0xFF332A1D),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("توجد خطط سابقة تحتاج إلى مراجعة", fontWeight = FontWeight.Bold, color = Color(0xFFFFD28A))
+                recoveryRecords.take(5).forEach { record ->
+                    val stateLabel = if (record.state == TaskPlanRecoveryRecord.REVIEW_REQUIRED) {
+                        "نتيجة إجراء غير محسومة"
+                    } else {
+                        "انقطعت قبل الاكتمال"
+                    }
+                    Text(
+                        "الخطة ${record.planId} · ${record.currentStepId ?: "لم تبدأ خطوة"} · $stateLabel",
+                        color = Color(0xFFE8EAED),
+                        fontSize = 12.sp
+                    )
+                }
+                Text(
+                    "تحقق من سجل التدقيق قبل إعادة أي إجراء؛ لن يستأنف NOID هذه الخطط تلقائياً.",
+                    color = Color(0xFFFFD28A),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+
     Text(
         text = when (engineStatus) {
             AssistantEngineStatus.NotConfigured -> "محرك الذكاء الاصطناعي غير مهيأ بعد — رسائلك تُحفظ محلياً."

@@ -74,6 +74,19 @@ class ChatViewModel(
     private var generationJob: Job? = null
     private val pendingModelToolCalls = PendingModelToolCallHandoff()
     val error: StateFlow<String?> = mutableError.asStateFlow()
+    private val mutableRecoveryRecords = MutableStateFlow<List<TaskPlanRecoveryRecord>>(emptyList())
+    val recoveryRecords: StateFlow<List<TaskPlanRecoveryRecord>> = mutableRecoveryRecords.asStateFlow()
+
+    init { refreshTaskPlanRecovery() }
+
+    private fun refreshTaskPlanRecovery() {
+        val store = taskPlanRecoveryStore ?: return
+        viewModelScope.launch {
+            try { mutableRecoveryRecords.value = store.unresolved() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutableError.value = "تعذر قراءة سجل استعادة الخطط." }
+        }
+    }
 
     fun dismissError() {
         mutableError.value = null
@@ -212,6 +225,7 @@ class ChatViewModel(
                         progress.completedSteps + " خطوة. السبب: " + progress.reason
                 )
         }
+        refreshTaskPlanRecovery()
     }
 
     fun sendMessage(text: String) {

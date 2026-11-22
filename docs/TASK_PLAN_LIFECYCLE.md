@@ -1,12 +1,12 @@
 # NOID AI — Task Plan Lifecycle and Recovery Specification
 
-**Status:** Engineering specification; implementation pending  
+**Status:** Partially implemented; device-level verification and migration testing remain pending  
 **Scope:** Android task-plan orchestration and its Room-backed recovery record  
 **Safety objective:** Process death, app restart, cancellation, or an ambiguous tool outcome must never cause an old plan to execute again without a fresh user decision.
 
 ## 1. Current implementation boundary
 
-The current `AssistantTaskPlanCoordinator` keeps sessions in an in-memory map. A session contains the plan, completed results, next step index, and (when paused) the current approval-ticket ID. `ToolRegistry` approval tickets are also runtime objects. The chat view model cancels sessions when generation is cancelled or the conversation is cleared.
+The live coordinator still keeps executable sessions and approval tickets in memory. Durable recovery metadata is now stored separately in Room (`task_plan_recovery`, database version 8); it deliberately does not persist tool arguments, approval tickets, or raw results. The chat view model cancels sessions when generation is cancelled or the conversation is cleared.
 
 Consequences:
 
@@ -15,7 +15,7 @@ Consequences:
 - It also does not yet provide a durable, user-visible record explaining which plan was interrupted.
 - No approval ticket, tool argument, raw tool output, or credential may be persisted as a recovery shortcut.
 
-This document defines the next safe increment. It does not claim that durable recovery is already implemented.
+The Room entity/DAO/store, coordinator transition hooks, startup recovery, and a user-visible warning for unresolved plans have been added. Target-device process-death testing and an explicit migration test remain pending.
 
 ## 2. Non-negotiable recovery rules
 
