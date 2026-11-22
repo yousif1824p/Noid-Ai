@@ -108,6 +108,7 @@ class AssistantTaskPlanCoordinator(
             removeSession(session)
             throw cancelled
         } catch (_: Exception) {
+            markRecoveryAfterUnexpectedFailure(plan.planId)
             removeSession(session)
             AssistantTaskPlanProgress.Stopped(
                 plan.planId,
@@ -152,6 +153,7 @@ class AssistantTaskPlanCoordinator(
             removeSession(session)
             throw cancelled
         } catch (_: Exception) {
+            markRecoveryAfterUnexpectedFailure(planId)
             removeSession(session)
             AssistantTaskPlanProgress.Stopped(
                 planId,
@@ -244,6 +246,17 @@ class AssistantTaskPlanCoordinator(
             session.results.toList(),
             session.plan.steps.map { it.proposal.actionId }
         )
+    }
+
+    private suspend fun markRecoveryAfterUnexpectedFailure(planId: String) {
+        try {
+            recoveryStore?.markInterruptedOrReview(planId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Keep the original failure visible. A later process start retries
+            // conservative recovery if this best-effort write also fails.
+        }
     }
 
     private fun terminalFailure(result: ToolRegistryResult): String? = when (result) {
