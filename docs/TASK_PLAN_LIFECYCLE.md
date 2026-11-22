@@ -1,120 +1,86 @@
-# NOID AI — Task Plan Lifecycle and Recovery Specification
+# NOID AI — Task Plan Lifecycle and Recovery
 
-**Status:** Partially implemented; device-level verification and migration testing remain pending  
-**Scope:** Android task-plan orchestration and its Room-backed recovery record  
-**Safety objective:** Process death, app restart, cancellation, or an ambiguous tool outcome must never cause an old plan to execute again without a fresh user decision.
+**Status:** Metadata-only recovery is implemented; automated tests pass. Populated-v7 migration verification and target-device process-death testing remain pending.  
+**Scope:** Android task-plan orchestration and its Room-backed recovery metadata.  
+**Safety objective:** A process restart or ambiguous tool outcome must never replay an old plan automatically.
 
-## 1. Current implementation boundary
+## 1. Implemented behavior
 
-The live coordinator still keeps executable sessions and approval tickets in memory. Durable recovery metadata is now stored separately in Room (`task_plan_recovery`, database version 8); it deliberately does not persist tool arguments, approval tickets, or raw results. The chat view model cancels sessions when generation is cancelled or the conversation is cleared.
+The coordinator keeps executable plan sessions and approval tickets in memory. Room database version 8 adds one metadata row per plan in `task_plan_recovery`.
 
-Consequences:
+The row contains only:
+- Plan ID and step count.
+- Current step index and current step ID.
+- Plan-level state and a `dispatchStarted` flag.
+- Creation and update timestamps.
 
-- An app-process restart destroys active sessions and runtime approval tickets.
-- The current implementation does not automatically resume a plan after restart.
-- It also does not yet provide a durable, user-visible record explaining which plan was interrupted.
-- No approval ticket, tool argument, raw tool output, or credential may be persisted as a recovery shortcut.
+It does **not** store the plan goal, individual step records, tool arguments, approval-ticket IDs, raw tool outputs, credentials, or file contents. There is no durable child-step table and no per-step `OUTCOME_UNKNOWN` state.
 
-The Room entity/DAO/store, coordinator transition hooks, startup recovery, and a user-visible warning for unresolved plans have been added. Target-device process-death testing and an explicit migration test remain pending.
+The production ChatViewModel wires the recovery store into the coordinator, loads up to 100 unresolved records, and displays a warning for plans requiring review. Cancellation and conversation clearing cancel live sessions and refresh the recovery state.
 
-## 2. Non-negotiable recovery rules
+## 2. Actual state model
 
-1. **Never auto-resume.** A plan found active after process restart becomes `INTERRUPTED`; it is not executable.
-2. **Never restore an approval ticket.** Runtime ticket IDs are ephemeral and must not be stored as reusable authorization.
-3. **Fresh approval is mandatory.** Any later attempt to continue must be reconstructed as a new plan and pass normal validation and the existing approval gate.
-4. **No blind retries after ambiguous dispatch.** If the process dies after a tool may have started but before its outcome is durably recorded, mark that step `OUTCOME_UNKNOWN`. Do not replay it automatically.
-5. **Persist metadata, not payloads.** Recovery records contain identifiers, bounded goal text, counts, timestamps, status, and safe failure codes only. Do not store tool arguments, file contents, secrets, or raw outputs.
-6. **Fail closed.** If the recovery store cannot be updated at a required transition, stop dispatching further steps.
-7. **Do not imply exactly-once execution.** A local database transaction cannot make an arbitrary external side effect atomic with the tool call. Ambiguous outcomes require reconciliation, not a retry claim.
-
-## 3. Durable state model
-
-Plan states:
-
-| State | Meaning | May dispatch another step? |
-|---|---|---:|
-| `CREATED` | Validated plan metadata recorded, no step dispatched | No |
-| `RUNNING` | A step is being processed | Only by the live coordinator |
-| `WAITING_APPROVAL` | A sensitive step is paused for the current process | No, until fresh in-process approval |
-| `COMPLETED` | Every step completed and its completion audit succeeded | No |
-| `STOPPED` | A step failed, was rejected, or audit was unavailable | No |
-| `CANCELLED` | User explicitly cancelled the plan | No |
-| `INTERRUPTED` | Process ended before a terminal state was recorded | No |
-| `REVIEW_REQUIRED` | At least one step may have executed but its final outcome is unknown | No |
-
-Step states:
-
-- `PENDING`
-- `DISPATCHING`
-- `AWAITING_APPROVAL`
-- `SUCCEEDED`
-- `FAILED`
-- `REJECTED`
+The persisted plan-level states are:
+- `RUNNING`
+- `WAITING_APPROVAL`
+- `COMPLETED`
+- `STOPPED`
 - `CANCELLED`
-- `OUTCOME_UNKNOWN`
+- `INTERRUPTED`
+- `REVIEW_REQUIRED`
 
-A step must be durably marked `DISPATCHING` before invoking its adapter. If restart recovery finds `DISPATCHING`, it changes that step to `OUTCOME_UNKNOWN` and the plan to `REVIEW_REQUIRED`. This conservative rule intentionally prefers a possible incomplete task over a duplicate destructive action.
+The database stores the current step as an index and optional step ID, not as an independently persisted step-state machine.
 
-## 4. Transition contract
+### Startup recovery
 
-- `start`: validate the entire plan first; create a durable record before any tool dispatch.
-- Before each dispatch: persist the step index and `DISPATCHING`; if persistence fails, do not call the tool.
-- Safe completion: persist `SUCCEEDED` and the next index before proceeding.
-- Sensitive action: persist `AWAITING_APPROVAL`; keep the approval ticket only in memory.
-- Approval: validate the live ticket through `ToolRegistry`; persist `DISPATCHING` before invocation. A stale, missing, or mismatched ticket is rejected.
-- Rejection/cancellation: revoke the live ticket, persist a terminal state, and prevent later steps.
-- Completion: persist `COMPLETED` only after every step has a successful, completion-audited result.
-- Restart: transactionally convert non-terminal plans to `INTERRUPTED`, except plans with a `DISPATCHING` step, which become `REVIEW_REQUIRED` with that step `OUTCOME_UNKNOWN`.
+On the first store access in a process, active rows in `RUNNING` or `WAITING_APPROVAL` are updated:
+- If `dispatchStarted = true`, state becomes `REVIEW_REQUIRED`.
+- Otherwise, state becomes `INTERRUPTED`.
 
-## 5. Proposed storage contract
+The recovery update clears `dispatchStarted` and updates the timestamp. The current step metadata remains available for review. The store does not recreate a coordinator session or approval ticket, and no plan is automatically resumed.
 
-Introduce a Room entity for plan recovery metadata and a child step entity, or a single bounded row if schema simplicity is preferred. The chosen representation must enforce:
+`REVIEW_REQUIRED` means a tool may have started before the process ended; its external effect must be checked before the user creates a new attempt. `INTERRUPTED` means the persisted metadata did not indicate an in-flight dispatch. Neither state means the plan completed.
 
-- Stable, validated plan ID with a unique index.
-- Maximum 8 steps, matching `AssistantTaskPlanPolicy.MAX_STEPS`.
-- Bounded goal and step identifiers.
-- Enumerated state values; unknown values fail closed.
-- Monotonic update timestamps and explicit created/updated times.
-- A transaction for plan-state and step-state transitions.
-- No raw proposal arguments, approval ticket IDs, tool output, credentials, or file content.
-- Retention limits for terminal records; never delete unresolved `REVIEW_REQUIRED` records automatically.
+## 3. Dispatch and approval safeguards
 
-The database migration must preserve all existing records. Add migration tests from the immediately previous schema and verify the generated Room schema matches the entity definitions.
+1. The plan is validated before execution and a unique recovery row is created.
+2. Before invoking a tool, the coordinator persists the current step and sets `dispatchStarted = true`. If this persistence fails, the tool must not run.
+3. When a sensitive action pauses for approval, the plan is persisted as `WAITING_APPROVAL`; the approval ticket remains in memory only.
+4. A live approval is checked through the tool registry. Before the approved tool is invoked, dispatch metadata is persisted.
+5. After a step succeeds and its completion audit is recorded, the store advances the current index and clears the dispatch flag.
+6. A terminal state is persisted for completion, stop, or cancellation. Persistence failures fail closed rather than claiming a successful transition.
+7. Recovery never retries tools and never restores approval tickets.
 
-## 6. User-facing recovery behavior
+A database write and an arbitrary external side effect cannot be made one atomic transaction. Therefore `REVIEW_REQUIRED` is deliberately conservative; it does not claim exactly-once execution.
 
-On opening the task-plan history:
+## 4. Migration
 
-- Show interrupted plans with a clear label and last known step.
-- For `OUTCOME_UNKNOWN`, explain that the action may have happened and must be checked before another attempt.
-- Offer only safe actions: dismiss/archive after review, inspect the relevant audit events, or create a new plan after the user confirms the current state.
-- Do not expose raw tool arguments or sensitive output in the recovery card.
-- Never present an interrupted plan as completed.
+Room migration 7→8 creates `task_plan_recovery` and leaves existing tables untouched. The migration contract test verifies the migration version pair, table-creation SQL, expected metadata columns, and absence of payload/credential columns.
 
-## 7. Required tests before enabling persistence
+**Not yet verified:** a migration of a real, populated version-7 database with existing chat, memory, learning, proposal, and audit rows. The current contract test is not a substitute for that integration test. Room schema export is currently disabled, so a populated-database test requires a controlled version-7 fixture or enabling and maintaining exported schemas.
 
-1. A process-recovery simulation converts `RUNNING` to `INTERRUPTED`.
-2. A `DISPATCHING` step becomes `OUTCOME_UNKNOWN` and is never invoked by recovery.
-3. A waiting approval becomes interrupted; the old ticket cannot authorize execution.
-4. A fresh plan still requires the normal approval gate for sensitive actions.
-5. Failure to persist `DISPATCHING` prevents the adapter from running.
-6. Failure to persist completion prevents the next step from running.
-7. Repeated recovery is idempotent.
-8. Concurrent approval attempts invoke the approved step at most once within the live process.
-9. Invalid or unknown persisted states fail closed.
-10. Migration preserves existing chat, memory, learning, proposal, and audit records.
+## 5. User-facing recovery
 
-## 8. Acceptance criteria
+The app shows an unresolved-plan warning with plan ID, current step information, and persisted state. It advises the user to inspect the audit history before attempting the action again.
 
-This increment is complete only when:
+Current UI is a warning/review entry point, not a complete recovery-history workflow. It does not yet provide a full per-step timeline, archive/dismiss lifecycle, or an automated reconciliation process. Raw tool arguments and outputs are not exposed by the recovery record.
 
-- Room migration and DAO tests pass.
-- Coordinator tests cover cancellation, stale approvals, restart recovery, and ambiguous outcomes.
-- Android unit tests pass in CI.
-- No APK is packaged as part of CI.
-- Documentation and UI accurately distinguish `INTERRUPTED` from `COMPLETED`.
-- A manual device test confirms restart behavior; CI alone does not prove Android process-death behavior on the target phone.
+## 6. Automated verification already present
 
-## 9. Explicit non-goals
+- Store tests cover recovery of active and approval-waiting records, duplicate plan IDs, terminal-state stability, and dispatch-state constraints.
+- Coordinator integration tests cover successful completion persistence and rejection of a stale approval after coordinator recreation.
+- Migration contract test covers the 7→8 table-creation contract and metadata-only schema.
+- CI run **45038344197** completed successfully, including Android unit tests. The workflow does not package an APK.
 
-This work does not implement model-weight training, unrestricted self-modification, automatic retry of side-effecting tools, background execution, voice features, or privileged device control. Recovery metadata is operational state, not a learning memory and not evidence that the model improved.
+These tests do not prove Android process-death behavior on the target phone, nor do they verify migration of a populated v7 database.
+
+## 7. Remaining acceptance work
+
+1. Add and pass a true populated-v7-to-v8 migration integration test that verifies pre-existing rows remain intact.
+2. Manually test on the target Android device: start a plan, interrupt/force-stop the app at safe points before and after dispatch, reopen it, and verify it is marked `INTERRUPTED` or `REVIEW_REQUIRED` as appropriate, with no automatic replay.
+3. Verify the warning banner and audit-review instructions on the device.
+4. Keep CI test-only; do not package an APK before the project is complete and the user approves it.
+
+## 8. Explicit non-goals
+
+This recovery feature does not implement model-weight training, unrestricted self-modification, automatic retry of side-effecting tools, background execution, voice features, or privileged device control. Recovery metadata is operational state, not a learning memory and not evidence that the model improved.
