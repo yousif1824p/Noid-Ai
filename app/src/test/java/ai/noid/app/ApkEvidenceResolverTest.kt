@@ -82,4 +82,34 @@ class ApkEvidenceResolverTest {
         assertTrue(text.contains("no findings are not proof of security"))
     }
 
+    @Test fun aiAdvisoryFindingRemainsAdvisoryWhenMappedFromAnalyzer() {
+        val finding = ApkSecurityFinding(
+            id = "ai.possible_network_risk",
+            severity = ApkFindingSeverity.MEDIUM,
+            title = "Possible network risk",
+            description = "Advisory only",
+            evidence = "Model suggestion",
+            recommendation = "Validate independently",
+            source = ApkFindingSource.AI_ADVISORY
+        )
+        val result = ApkEvidenceResolver.fromManifestFindings(listOf(finding))
+        assertEquals(ApkAssessmentStatus.INSUFFICIENT_EVIDENCE, result.status)
+        assertTrue(result.authoritativeEvidence.isEmpty())
+        assertEquals(ApkEvidenceOutcome.ADVISORY, result.aiAdvisories.single().outcome)
+    }
+
+    @Test fun conflictingEvidenceTakesPrecedenceOverFindingsStatus() {
+        val result = ApkEvidenceResolver.assess(listOf(
+            ApkEvidenceRecord("permission.check", ApkEvidenceOutcome.FLAGGED,
+                ApkEvidenceSource.DETERMINISTIC_RULE, "Rule flagged"),
+            ApkEvidenceRecord("permission.check", ApkEvidenceOutcome.NOT_FLAGGED,
+                ApkEvidenceSource.DYNAMIC_OBSERVATION, "Runtime observation disagrees"),
+            ApkEvidenceRecord("other.check", ApkEvidenceOutcome.FLAGGED,
+                ApkEvidenceSource.DETERMINISTIC_RULE, "Another finding")
+        ))
+        assertEquals(ApkAssessmentStatus.CONFLICTING_EVIDENCE, result.status)
+        assertEquals(2, result.findings.size)
+        assertEquals(1, result.conflicts.size)
+    }
+
 }
