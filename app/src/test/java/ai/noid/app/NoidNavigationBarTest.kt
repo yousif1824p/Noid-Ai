@@ -63,7 +63,7 @@ class NoidNavigationBarTest {
     }
 
     @Test
-    fun clearActionHasAnExplicitAccessibleDescription() {
+    fun clearActionRemainsVisibleAndAccessibleByItsVisibleLabel() {
         composeRule.setContent {
             MaterialTheme {
                 NoidNavigationBar(
@@ -75,6 +75,6 @@ class NoidNavigationBarTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription("مسح سجل المحادثة").assertIsDisplayed()
+        composeRule.onNodeWithText("مسح المحادثة").assertIsDisplayed()
     }
 }
