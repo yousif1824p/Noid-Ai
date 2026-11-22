@@ -18,10 +18,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowContentResolver
 
 /**
  * Exercises ProjectFileRepository through Android's DocumentsProvider/ContentResolver
@@ -49,7 +49,7 @@ class ProjectFileRepositorySafTest {
     fun documentsProviderChildQueryExposesOpaqueDocumentIds() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
         TestSafContentProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        registerTestSafContentProvider()
         val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, "root")
         val cursor = context.contentResolver.query(
@@ -87,7 +87,7 @@ class ProjectFileRepositorySafTest {
     fun readsWritesBacksUpAndRestoresThroughDocumentsProvider() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
         TestSafContentProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        registerTestSafContentProvider()
 
         val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
@@ -110,7 +110,7 @@ class ProjectFileRepositorySafTest {
         val original = "class Worker { val count = 1 }"
         File(root, "Worker.kt").writeText(original, Charsets.UTF_8)
         TestSafContentProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        registerTestSafContentProvider()
         val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
 
@@ -139,7 +139,7 @@ class ProjectFileRepositorySafTest {
         val original = "original"
         File(root, "notes.txt").writeText(original, Charsets.UTF_8)
         TestSafContentProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        registerTestSafContentProvider()
         val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
 
@@ -158,7 +158,7 @@ class ProjectFileRepositorySafTest {
     fun providerWriteFailureRestoresOriginalAndRetainsRecoveryBackup() {
         File(root, "notes.txt").writeText("original", Charsets.UTF_8)
         TestSafContentProvider.backingRoot = root
-        ShadowContentResolver.registerProviderInternal(TestSafContentProvider.AUTHORITY, TestSafContentProvider())
+        registerTestSafContentProvider()
         val treeUri = DocumentsContract.buildTreeDocumentUri(TestSafContentProvider.AUTHORITY, "root")
         val repository = ProjectFileRepository(context, backups)
 
@@ -346,4 +346,9 @@ class TestSafContentProvider : ContentProvider() {
             DocumentsContract.Document.COLUMN_LAST_MODIFIED
         )
     }
+}
+
+/** Installs an attached provider so ContentResolver's file transport has a valid Context. */
+internal fun registerTestSafContentProvider() {
+    Robolectric.setupContentProvider(TestSafContentProvider::class.java, TestSafContentProvider.AUTHORITY)
 }
