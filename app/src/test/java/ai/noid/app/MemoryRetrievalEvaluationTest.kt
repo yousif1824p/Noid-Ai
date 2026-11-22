@@ -80,9 +80,9 @@ class MemoryRetrievalEvaluationTest {
     @Test
     fun repeatedTermsContributeToBm25TermFrequency() {
         val memories = listOf(
-            memory(1, "مفتاح", "قيمة"),
-            memory(2, "مفتاح مفتاح مفتاح مفتاح", "قيمة"),
-            memory(3, "عنوان مختلف", "محتوى آخر")
+            memory(1, "عنوان ثابت", "مفتاح قيمة قيمة قيمة"),
+            memory(2, "عنوان ثابت", "مفتاح مفتاح مفتاح قيمة"),
+            memory(3, "عنوان مختلف", "محتوى آخر جدا")
         )
 
         val ranked = MemoryRetrievalPolicy.rank("مفتاح", memories)
