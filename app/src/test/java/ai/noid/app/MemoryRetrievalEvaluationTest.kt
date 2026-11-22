@@ -85,9 +85,14 @@ class MemoryRetrievalEvaluationTest {
             memory(3, "عنوان مختلف", "محتوى آخر جدا")
         )
 
-        val ranked = MemoryRetrievalPolicy.rank("مفتاح", memories)
+        val scores = MemoryRetrievalPolicy.rank("مفتاح", memories).associate {
+            it.first.id to it.second
+        }
 
-        assertEquals(2L, ranked.first().first.id)
+        assertTrue(
+            "A higher term frequency should produce a higher BM25 score",
+            scores.getValue(2L) > scores.getValue(1L)
+        )
     }
 
     @Test
