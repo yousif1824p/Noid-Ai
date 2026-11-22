@@ -236,6 +236,7 @@ private fun NoidChatScreen(
     var showChatSearch by remember { mutableStateOf(false) }
     var showVisionScreen by remember { mutableStateOf(false) }
     var showRemoteSettings by remember { mutableStateOf(false) }
+    var showDeviceMonitor by remember { mutableStateOf(false) }
     var remoteSettings by remember { mutableStateOf(remoteSettingsStore.read()) }
 
     pendingToolApprovals.firstOrNull()?.let { pending ->
@@ -298,6 +299,7 @@ private fun NoidChatScreen(
                                 showChatSearch -> "بحث محلي في سجل المحادثات"
                                 showVisionScreen -> "اختيار صورة والتحقق منها"
                                 showRemoteSettings -> "إعداد الاتصال البعيد الاختياري"
+                                showDeviceMonitor -> "مراقبة حرارة الجهاز والذاكرة"
                                 else -> "مساعدك الشخصي · تخزين محلي"
                             },
                             color = Color(0xFF9AA0AA),
@@ -317,6 +319,7 @@ private fun NoidChatScreen(
                     showChatSearch -> NoidDestination.CHAT_SEARCH
                     showVisionScreen -> NoidDestination.VISION
                     showRemoteSettings -> NoidDestination.REMOTE
+                    showDeviceMonitor -> NoidDestination.DEVICE_MONITOR
                     else -> NoidDestination.CHAT
                 }
                 NoidNavigationBar(
@@ -335,6 +338,7 @@ private fun NoidChatScreen(
                         showChatSearch = next == NoidDestination.CHAT_SEARCH
                         showVisionScreen = next == NoidDestination.VISION
                         showRemoteSettings = next == NoidDestination.REMOTE
+                        showDeviceMonitor = next == NoidDestination.DEVICE_MONITOR
                     },
                     onClearConversation = { showClearConfirmation = true }
                 )
@@ -367,6 +371,8 @@ private fun NoidChatScreen(
                 ChatSearchScreen(viewModel = viewModel)
             } else if (showVisionScreen) {
                 VisionImagePickerScreen(toolRegistry = toolRegistry, visionEngine = visionEngine)
+            } else if (showDeviceMonitor) {
+                DeviceMonitorScreen()
             } else if (showRemoteSettings) {
                 RemoteConnectorSettingsScreen(
                     settings = remoteSettings,
