@@ -269,7 +269,7 @@ fun ApkInspectionScreen(
         if (report == null && !busy && error == null) {
             Spacer(Modifier.height(4.dp))
             Text(
-                "حد الملف 200 ميغابايت. لا يُرسل الملف إلى أي خادم.",
+                "حد الملف 1.5 غيغابايت. يتطلب الملف الكبير مساحة مؤقتة كافية؛ لا يُرسل الملف إلى أي خادم.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
@@ -278,6 +278,22 @@ fun ApkInspectionScreen(
 }
 
 private fun copyApkToCache(context: android.content.Context, uri: Uri): File {
+    val declaredSize = try {
+        context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+    } catch (_: Exception) {
+        -1L
+    }
+    if (declaredSize > ApkManifestInspector.MAX_APK_BYTES) {
+        throw IOException("حجم APK يتجاوز الحد المسموح (1.5 غيغابايت).")
+    }
+    val bytesToReserveForCopy = if (declaredSize > 0L) declaredSize
+        else ApkManifestInspector.MAX_APK_BYTES
+    val safetyReserveBytes = 128L * 1024L * 1024L
+    if (context.cacheDir.usableSpace < bytesToReserveForCopy + safetyReserveBytes) {
+        throw IOException(
+            "المساحة المؤقتة غير كافية لفحص هذا الملف بأمان. وفر مساحة لا تقل عن حجم الملف مع 128 ميغابايت احتياطية."
+        )
+    }
     val temp = File.createTempFile("noid-apk-", ".apk", context.cacheDir)
     try {
         val input = context.contentResolver.openInputStream(uri)
@@ -291,7 +307,7 @@ private fun copyApkToCache(context: android.content.Context, uri: Uri): File {
                     if (count < 0) break
                     total += count
                     if (total > ApkManifestInspector.MAX_APK_BYTES) {
-                        throw IOException("حجم APK يتجاوز الحد المسموح (200 ميغابايت).")
+                        throw IOException("حجم APK يتجاوز الحد المسموح (1.5 غيغابايت).")
                     }
                     target.write(buffer, 0, count)
                 }
