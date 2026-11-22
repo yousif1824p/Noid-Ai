@@ -52,9 +52,10 @@ class MemoryRepository(
         require(maxCharacters in 1..MAX_CONTEXT_CHARACTERS) { "Context character limit is out of range." }
         val tokens = MemoryRetrievalPolicy.tokens(query)
         if (tokens.isEmpty()) return emptyList()
-        val ranked = memoryDao.getRecent(MAX_RETRIEVAL_CANDIDATES)
+        val candidates = memoryDao.getRecent(MAX_RETRIEVAL_CANDIDATES)
+        val ranked = candidates
             .mapNotNull { memory ->
-                val score = MemoryRetrievalPolicy.score(query, tokens, memory)
+                val score = MemoryRetrievalPolicy.score(query, tokens, memory, candidates)
                 if (score > 0.0) memory to score else null
             }
             .sortedWith(
