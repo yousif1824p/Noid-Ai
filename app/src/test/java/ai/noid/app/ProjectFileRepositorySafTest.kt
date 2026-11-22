@@ -2,6 +2,7 @@ package ai.noid.app
 
 import android.database.Cursor
 import android.database.MatrixCursor
+import android.net.Uri
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
@@ -172,6 +173,25 @@ class ProjectFileRepositorySafTest {
 /** Minimal DocumentsProvider backed by a temporary host directory. */
 class TestDocumentsProvider : DocumentsProvider() {
     override fun onCreate(): Boolean = true
+
+    /**
+     * Robolectric dispatches ContentResolver.query through this legacy overload.
+     * DocumentsProvider's default implementation rejects that format, so route
+     * the three SAF URI shapes directly to the corresponding provider methods.
+     */
+    override fun query(
+        uri: Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?
+    ): Cursor = when {
+        uri.lastPathSegment == "children" ->
+            queryChildDocuments(DocumentsContract.getDocumentId(uri), projection, sortOrder)
+        uri.pathSegments.contains("document") ->
+            queryDocument(DocumentsContract.getDocumentId(uri), projection)
+        else -> queryRoots(projection)
+    }
 
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val columns = projection ?: ROOT_COLUMNS
