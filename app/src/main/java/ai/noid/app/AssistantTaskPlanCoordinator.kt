@@ -21,7 +21,11 @@ sealed interface AssistantTaskPlanProgress {
         val totalSteps: Int,
         val pending: PendingToolApproval
     ) : AssistantTaskPlanProgress
-    data class Completed(val planId: String, val results: List<ToolRegistryResult>) : AssistantTaskPlanProgress
+    data class Completed(
+        val planId: String,
+        val results: List<ToolRegistryResult>,
+        val actionIds: List<String> = emptyList()
+    ) : AssistantTaskPlanProgress
     data class Stopped(
         val planId: String,
         val stepId: String,
@@ -196,7 +200,11 @@ class AssistantTaskPlanCoordinator(private val toolRegistry: ToolRegistry) {
             }
         }
         removeSession(session)
-        return AssistantTaskPlanProgress.Completed(session.plan.planId, session.results.toList())
+        return AssistantTaskPlanProgress.Completed(
+            session.plan.planId,
+            session.results.toList(),
+            session.plan.steps.map { it.proposal.actionId }
+        )
     }
 
     private fun terminalFailure(result: ToolRegistryResult): String? = when (result) {

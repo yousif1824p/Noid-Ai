@@ -177,11 +177,25 @@ class ChatViewModel(
                         " تتطلب موافقتك قبل المتابعة: " + progress.pending.description
                 )
             }
-            is AssistantTaskPlanProgress.Completed ->
+            is AssistantTaskPlanProgress.Completed -> {
+                val draft = TaskPlanExperienceDraftFactory.from(progress)
+                val reviewNotice = if (draft == null) {
+                    " لم تُنشأ خبرة للمراجعة لأن نتائج التنفيذ لم تستوفِ شروط الحفظ الآمن."
+                } else {
+                    try {
+                        learningRepository.propose(draft.title, draft.content, draft.source)
+                        " أُضيفت خبرة مختصرة إلى قائمة التعلّم للمراجعة؛ لن تدخل ذاكرة NOID قبل موافقتك."
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        " اكتمل التنفيذ، لكن تعذر إنشاء اقتراح الخبرة."
+                    }
+                }
                 repository.appendAssistantResponse(
                     "اكتملت الخطة «" + progress.planId + "» بنجاح. عدد الخطوات المنفذة: " +
-                        progress.results.size + "."
+                        progress.results.size + "." + reviewNotice
                 )
+            }
             is AssistantTaskPlanProgress.Stopped ->
                 repository.appendAssistantResponse(
                     "توقفت الخطة عند الخطوة " + progress.stepId + " بعد إكمال " +
