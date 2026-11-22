@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Debug
 import android.os.PowerManager
@@ -136,7 +137,7 @@ private fun readDeviceMetrics(context: Context): DeviceMetrics {
     val memoryInfo = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
     val processMemory = Debug.MemoryInfo().also(Debug::getMemoryInfo)
     val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    val rawTemperature = batteryIntent?.getIntExtra(BatteryTemperature.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+    val rawTemperature = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
         ?: Int.MIN_VALUE
     val batteryTemperature = if (rawTemperature != Int.MIN_VALUE) rawTemperature / 10f else null
     val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -155,9 +156,6 @@ private fun readDeviceMetrics(context: Context): DeviceMetrics {
     )
 }
 
-private object BatteryTemperature {
-    const val EXTRA_TEMPERATURE = "temperature"
-}
 
 private fun thermalStatusLabel(status: Int): String = when (status) {
     PowerManager.THERMAL_STATUS_NONE -> "طبيعي"
