@@ -8,7 +8,13 @@ import androidx.room.Index
  * A candidate lesson is inert until the user explicitly approves it.
  * This is curated retrieval data, never model-weight training.
  */
-@Entity(tableName = "learning_records", indices = [Index(value = ["status", "reviewedAt"])])
+@Entity(
+    tableName = "learning_records",
+    indices = [
+        Index(value = ["status", "reviewedAt"]),
+        Index(value = ["deduplicationKey"], unique = true)
+    ]
+)
 data class LearningRecord(
     val title: String,
     val content: String,
@@ -16,6 +22,7 @@ data class LearningRecord(
     val status: String = STATUS_PENDING,
     val createdAt: Long = System.currentTimeMillis(),
     val reviewedAt: Long? = null,
+    val deduplicationKey: String? = null,
     @PrimaryKey(autoGenerate = true) val id: Long = 0
 ) {
     companion object {
