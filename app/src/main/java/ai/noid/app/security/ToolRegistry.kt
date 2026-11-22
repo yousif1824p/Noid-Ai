@@ -84,6 +84,20 @@ class ToolRegistry(
             })
         }
 
+
+    /** Read-only catalogue for the planner; schemas never carry execution grants. */
+    @Synchronized
+    fun planningCatalog(): List<AssistantPlannerToolDescriptor> =
+        adapters.values.mapNotNull { adapter ->
+            val schema = adapter.modelToolDescriptionJson ?: return@mapNotNull null
+            AssistantPlannerToolDescriptor(
+                actionId = adapter.action.actionId,
+                description = adapter.action.description,
+                risk = adapter.action.risk.name,
+                schemaJson = schema
+            )
+        }
+
     /** Maps untrusted LiteRT-LM arguments into a pending request using app-owned context. */
     fun requestApprovalFromModel(
         modelToolName: String,

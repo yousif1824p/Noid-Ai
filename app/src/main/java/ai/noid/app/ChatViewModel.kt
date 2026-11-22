@@ -152,6 +152,38 @@ class ChatViewModel(
         mutableIsGenerating.value = false
     }
 
+
+    private val taskPlanner = AssistantTaskPlanner(engine, toolRegistry)
+    private val taskPlanCoordinator = AssistantTaskPlanCoordinator(toolRegistry)
+    private val pendingPlanApprovals = mutableMapOf<String, String>()
+
+    private suspend fun handleTaskPlanProgress(progress: AssistantTaskPlanProgress) {
+        when (progress) {
+            is AssistantTaskPlanProgress.Rejected ->
+                repository.appendAssistantResponse("تعذر إنشاء الخطة أو اعتمادها: " + progress.reason)
+            is AssistantTaskPlanProgress.AwaitingApproval -> {
+                synchronized(pendingPlanApprovals) {
+                    pendingPlanApprovals[progress.pending.id] = progress.planId
+                }
+                repository.appendAssistantResponse(
+                    "أُنشئت الخطة «" + progress.planId + "». الخطوة " +
+                        (progress.stepIndex + 1) + " من " + progress.totalSteps +
+                        " تتطلب موافقتك قبل المتابعة: " + progress.pending.description
+                )
+            }
+            is AssistantTaskPlanProgress.Completed ->
+                repository.appendAssistantResponse(
+                    "اكتملت الخطة «" + progress.planId + "» بنجاح. عدد الخطوات المنفذة: " +
+                        progress.results.size + "."
+                )
+            is AssistantTaskPlanProgress.Stopped ->
+                repository.appendAssistantResponse(
+                    "توقفت الخطة عند الخطوة " + progress.stepId + " بعد إكمال " +
+                        progress.completedSteps + " خطوة. السبب: " + progress.reason
+                )
+        }
+    }
+
     fun sendMessage(text: String) {
         val normalized = text.trim()
         if (normalized.isEmpty() || generationJob?.isActive == true) return
@@ -160,6 +192,27 @@ class ChatViewModel(
             mutableError.value = null
             try {
                 repository.sendMessage(normalized)
+
+                val planPrefix = "/plan "
+                if (normalized.startsWith(planPrefix, ignoreCase = true)) {
+                    mutableIsGenerating.value = true
+                    if (engine.status.value !is AssistantEngineStatus.Ready) {
+                        repository.appendAssistantResponse(
+                            "لا يمكن إنشاء خطة الآن؛ حمّل نموذج LiteRT-LM محلياً أولاً."
+                        )
+                        return@launch
+                    }
+                    val request = AssistantTurnRequest(
+                        conversation = repository.currentConversation(),
+                        approvedMemories = memoryRepository.recentContext(),
+                        approvedLessons = learningRepository.approvedContext(),
+                        toolProviders = emptyList()
+                    )
+                    val task = normalized.substring(planPrefix.length).trim()
+                    val plan = taskPlanner.createPlan(request, task)
+                    handleTaskPlanProgress(taskPlanCoordinator.start(plan))
+                    return@launch
+                }
 
                 // Never fabricate an answer when no inference runtime is configured.
                 if (engine.status.value !is AssistantEngineStatus.Ready) return@launch
@@ -198,6 +251,13 @@ class ChatViewModel(
     }
 
     fun approveToolApproval(pendingId: String) {
+        val planId = synchronized(pendingPlanApprovals) { pendingPlanApprovals.remove(pendingId) }
+        if (planId != null) {
+            viewModelScope.launch {
+                handleTaskPlanProgress(taskPlanCoordinator.approve(planId, pendingId))
+            }
+            return
+        }
         viewModelScope.launch {
             // Claim the model handoff before execution. If the generation times out
             // while the approved tool is running, its result must not become a
@@ -225,6 +285,13 @@ class ChatViewModel(
     }
 
     fun rejectToolApproval(pendingId: String) {
+        val planId = synchronized(pendingPlanApprovals) { pendingPlanApprovals.remove(pendingId) }
+        if (planId != null) {
+            viewModelScope.launch {
+                handleTaskPlanProgress(taskPlanCoordinator.reject(planId))
+            }
+            return
+        }
         toolRegistry.cancelApproval(pendingId)
         pendingModelToolCalls.reject(
             pendingId,

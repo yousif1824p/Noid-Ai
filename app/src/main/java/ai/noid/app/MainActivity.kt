@@ -469,6 +469,12 @@ private fun ColumnScope.ChatContent(
                 "أرسل رسالتك. لاستقبال إجابات محلية، افتح «محرك AI» واستورد نموذج LiteRT-LM متوافقاً.",
                 color = Color(0xFF9AA0AA)
             )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "لإنشاء خطة تنفيذ متعددة الخطوات، ابدأ رسالتك بالأمر: /plan ثم اكتب المهمة.",
+                color = Color(0xFF8AB4F8),
+                fontSize = 12.sp
+            )
         }
     } else {
         LazyColumn(
