@@ -34,6 +34,7 @@ class ProjectFileRepositorySafTest {
     @After
     fun tearDown() {
         TestDocumentsProvider.failNextWrite = false
+        TestDocumentsProvider.failNextRead = false
         root.deleteRecursively()
         backups.deleteRecursively()
     }
@@ -58,6 +59,55 @@ class ProjectFileRepositorySafTest {
         assertEquals("updated", restoreBackup.backupFile.readText(Charsets.UTF_8))
         assertTrue(repository.deleteBackup(backup))
         assertEquals(1, repository.listBackups("notes.txt").size)
+    }
+
+    @Test
+    fun sourceFreshnessReadsProviderContentAndDetectsConcurrentChanges() {
+        val original = "class Worker { val count = 1 }"
+        File(root, "Worker.kt").writeText(original, Charsets.UTF_8)
+        TestDocumentsProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        val repository = ProjectFileRepository(context, backups)
+
+        assertEquals(
+            SelfDevelopmentSourceFreshnessStatus.MATCH,
+            repository.verifySourceUnchanged(
+                treeUri,
+                "Worker.kt",
+                SelfDevelopmentProposalRepository.sha256(original)
+            ).status
+        )
+
+        File(root, "Worker.kt").writeText("class Worker { val count = 2 }", Charsets.UTF_8)
+        assertEquals(
+            SelfDevelopmentSourceFreshnessStatus.STALE,
+            repository.verifySourceUnchanged(
+                treeUri,
+                "Worker.kt",
+                SelfDevelopmentProposalRepository.sha256(original)
+            ).status
+        )
+    }
+
+    @Test
+    fun providerReadFailureFailsClosedAsUnavailableSource() {
+        val original = "original"
+        File(root, "notes.txt").writeText(original, Charsets.UTF_8)
+        TestDocumentsProvider.backingRoot = root
+        ShadowContentResolver.registerProviderInternal(TestDocumentsProvider.AUTHORITY, TestDocumentsProvider())
+        val treeUri = DocumentsContract.buildTreeDocumentUri(TestDocumentsProvider.AUTHORITY, "root")
+        val repository = ProjectFileRepository(context, backups)
+
+        TestDocumentsProvider.failNextRead = true
+        assertEquals(
+            SelfDevelopmentSourceFreshnessStatus.SOURCE_UNAVAILABLE,
+            repository.verifySourceUnchanged(
+                treeUri,
+                "notes.txt",
+                SelfDevelopmentProposalRepository.sha256(original)
+            ).status
+        )
     }
 
     @Test
@@ -121,6 +171,10 @@ class TestDocumentsProvider : DocumentsProvider() {
         mode: String,
         signal: CancellationSignal?
     ): ParcelFileDescriptor {
+        if (!mode.contains('w') && failNextRead) {
+            failNextRead = false
+            throw IOException("Injected provider read failure")
+        }
         if (mode.contains('w') && failNextWrite) {
             failNextWrite = false
             throw IOException("Injected provider write failure")
@@ -205,6 +259,7 @@ class TestDocumentsProvider : DocumentsProvider() {
         const val AUTHORITY = "ai.noid.test.documents"
         lateinit var backingRoot: File
         @Volatile var failNextWrite: Boolean = false
+        @Volatile var failNextRead: Boolean = false
 
         private val ROOT_COLUMNS = arrayOf(
             DocumentsContract.Root.COLUMN_ROOT_ID,
